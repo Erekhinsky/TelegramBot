@@ -1,6 +1,7 @@
-USER_TABLE = "user"
+USER_TABLE = "users"
 STATE_TABLE = "states"
 GROUP_TABLE = "group"
+USER_GROUP_TABLE = "users_group"
 
 get_user_state = f"""
     DECLARE $user_id AS Uint64;
@@ -62,18 +63,64 @@ update_user = f"""
     WHERE user_id == $user_id;
 """
 
+# Получение всех групп
+
 get_user_group = f"""
-    DECLARE $group_id AS Int64;
     DECLARE $user_id AS Int64;
-    DECLARE $name AS Utf8;
 
     SELECT
         group_id,
         user_id,
         name
     FROM `{GROUP_TABLE}`
-    WHERE user_id == $user_id AND name = $name;
+    WHERE user_id == $user_id;
 """
+
+get_not_user_group = f"""
+    DECLARE $user_id AS Int64;
+
+    SELECT
+        `{GROUP_TABLE}`.name AS name,
+        `{USER_TABLE}`.first_name AS first_name,
+        `{USER_TABLE}`.last_name AS last_name
+    FROM `{USER_GROUP_TABLE}`
+    FULL JOIN `{GROUP_TABLE}` ON `{USER_GROUP_TABLE}`.group_id = `{GROUP_TABLE}`.group_id
+    FULL JOIN `{USER_TABLE}` ON  `{GROUP_TABLE}`.user_id = `{USER_TABLE}`.user_id
+    WHERE `{USER_GROUP_TABLE}`.user_id == $user_id AND `{GROUP_TABLE}`.user_id != $user_id;
+"""
+
+get_id_group_by_name = f"""
+    DECLARE $user_id AS Int64;
+    DECLARE $name AS Utf8;
+
+    SELECT
+        group_id,
+        name
+    FROM `{GROUP_TABLE}`
+    WHERE user_id == $user_id AND name == $name;
+"""
+
+get_id_group = f"""
+    DECLARE $user_id AS Int64;
+
+    SELECT
+        group_id,
+        name,
+    FROM `{GROUP_TABLE}`
+    WHERE user_id == $user_id;
+"""
+
+get_by_id_group = f"""
+    DECLARE $group_id AS Int64;
+
+    SELECT
+        group_id,
+        name,
+    FROM `{GROUP_TABLE}`
+    WHERE group_id == $group_id;
+"""
+
+# Добавление группы
 
 add_group = f"""
     DECLARE $group_id AS Uint64;
@@ -82,4 +129,13 @@ add_group = f"""
 
     INSERT INTO `{GROUP_TABLE}` (group_id, user_id, name)
     VALUES ($group_id, $user_id, $name);
+"""
+
+add_group_u = f"""
+    DECLARE $user_group_id AS Uint64;
+    DECLARE $user_id AS Uint64;
+    DECLARE $group_id AS Uint64;
+
+    INSERT INTO `{USER_GROUP_TABLE}` (user_group_id, user_id, group_id)
+    VALUES ($user_group_id, $user_id, $group_id);
 """

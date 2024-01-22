@@ -1,4 +1,6 @@
 import json
+import sys
+import random
 
 from database import queries
 from database.utils import execute_select_query, execute_update_query
@@ -55,19 +57,32 @@ def update_user(pool, user_id, first_name, last_name):
     )
 
 
+# Создание группы и получение id
+
+
 def add_group(pool, user_id, name):
+    group_id = random.randint(0, sys.maxsize)
     execute_update_query(
         pool,
         queries.add_group,
+        group_id=group_id,
         user_id=user_id,
         name=name,
     )
+    user_group_id = random.randint(0, sys.maxsize)
+    execute_update_query(
+        pool,
+        queries.add_group_u,
+        user_group_id=user_group_id,
+        user_id=user_id,
+        group_id=group_id,
+    )
 
 
-def get_user_group(pool, user_id, name):
+def get_id_group_by_name(pool, user_id, name):
     result = execute_select_query(
         pool,
-        queries.get_user_group,
+        queries.get_id_group_by_name,
         user_id=user_id,
         name=name,
     )
@@ -76,3 +91,71 @@ def get_user_group(pool, user_id, name):
         return None
 
     return result[0]
+
+
+def get_id_group(pool, user_id):
+    result = execute_select_query(
+        pool,
+        queries.get_id_group,
+        user_id=user_id,
+    )
+
+    if len(result) != 1:
+        return None
+
+    return result[0]
+
+
+def get_by_id_group(pool, group_id):
+    result = execute_select_query(
+        pool,
+        queries.get_by_id_group,
+        group_id=group_id,
+    )
+
+    if len(result) != 1:
+        return None
+
+    return result[0]
+
+# Получение всех групп
+
+
+def get_user_groups(pool, user_id):
+    result = execute_select_query(
+        pool,
+        queries.get_user_group,
+        user_id=user_id,
+    )
+
+    if len(result) == 0:
+        return None
+
+    return result[0]
+
+
+def get_not_user_groups(pool, user_id):
+    result = execute_select_query(
+        pool,
+        queries.get_not_user_group,
+        user_id=user_id,
+    )
+
+    if len(result) == 0:
+        return None
+
+    return result[0]
+
+
+# Вступление в группу
+
+
+def add_to_group(pool, user_id, group_id):
+    user_group_id = random.randint(0, sys.maxsize)
+    execute_update_query(
+        pool,
+        queries.add_group_u,
+        user_group_id=user_group_id,
+        user_id=user_id,
+        group_id=group_id,
+    )

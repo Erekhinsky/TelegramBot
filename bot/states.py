@@ -101,3 +101,8 @@ class ChangeDataState(StatesGroup):
 
 class CreateGroup(StatesGroup):
     name = State()
+
+
+class JoinGroup(StatesGroup):
+    setId = State()
+

@@ -6,8 +6,11 @@ START = (
     "/register\n"
     "/show_data\n"
     "/delete_account\n"
-    "/create_group"
+    "/create_group\n"
+    "/join"
 )
+
+IT_NOT_DIGIT = "Вы ввели не число"
 
 FIRST_NAME = "Enter your first name."
 LAST_NAME = "Enter your last name."
@@ -37,3 +40,12 @@ CHANGE_DATA_DONE = "Done! Your data is updated."
 
 GROUP_NAME = "Введите имя группы"
 CANCEL_CREATE_GROUP = "Прекращено, ваша группа не сохранена"
+GROUP_DATA_IS_SAVED = "Ваша группа сохранена:\nID группы: {}\nНазвание группы: {}\n"
+SHOW_USER_GROUPS = "Ваши подконтрольные группы:\nID группы: {}\nНазвание группы: {}\n\n"
+SHOW_ALL_GROUPS = "Ваши группы, где вы не владелец:\nНазвание группы: {}\nИмя владельца: {} {}\n"
+NOT_GROUPS = "Вы не состоите ни в одной группе"
+
+JOIN_GROUP = "Введите ID группы, в которую хотите вступить:"
+CANCEL_JOIN_GROUP = "Прекращено, вступление в группу не сохранено"
+IT_NOT_GROUP_ID = "Введен несуществующий ID группы"
+OK_JOIN_GROUP = "Вы вступили в группу: {}"
