@@ -19,6 +19,9 @@ set_user_state = f"""
     VALUES ($user_id, $state);
 """
 
+######################################################################################################################
+
+
 get_user = f"""
     DECLARE $user_id AS Int64;
 
@@ -63,7 +66,7 @@ update_user = f"""
     WHERE user_id == $user_id;
 """
 
-# Получение всех групп
+# Получение всех групп #############################################################################################
 
 get_user_group = f"""
     DECLARE $user_id AS Int64;
@@ -100,16 +103,6 @@ get_id_group_by_name = f"""
     WHERE user_id == $user_id AND name == $name;
 """
 
-get_id_group = f"""
-    DECLARE $user_id AS Int64;
-
-    SELECT
-        group_id,
-        name,
-    FROM `{GROUP_TABLE}`
-    WHERE user_id == $user_id;
-"""
-
 get_by_id_group = f"""
     DECLARE $group_id AS Int64;
 
@@ -120,7 +113,7 @@ get_by_id_group = f"""
     WHERE group_id == $group_id;
 """
 
-# Добавление группы
+# Добавление группы #############################################################################################
 
 add_group = f"""
     DECLARE $group_id AS Uint64;
@@ -138,4 +131,28 @@ add_group_u = f"""
 
     INSERT INTO `{USER_GROUP_TABLE}` (user_group_id, user_id, group_id)
     VALUES ($user_group_id, $user_id, $group_id);
+"""
+
+# Удаление группы и из них #############################################################################################
+
+
+delete_all_user_group = f"""
+    DECLARE $user_id AS Uint64;
+
+    DELETE FROM `{GROUP_TABLE}`
+    WHERE user_id == $user_id;
+"""
+
+delete_all_members_from_user_group = f"""
+    DECLARE $group_id AS Uint64;
+
+    DELETE FROM `{USER_GROUP_TABLE}`
+    WHERE group_id == $group_id;
+"""
+
+delete_user_from_not_user_group = f"""
+    DECLARE $user_id AS Uint64;
+
+    DELETE FROM `{USER_GROUP_TABLE}`
+    WHERE user_id == $user_id;
 """

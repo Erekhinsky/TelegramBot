@@ -25,6 +25,9 @@ def clear_state(pool, user_id):
     execute_update_query(pool, queries.set_user_state, user_id=user_id, state=None)
 
 
+#############################################################################################
+
+
 def add_user(pool, user_id, first_name, last_name):
     execute_update_query(
         pool,
@@ -44,7 +47,11 @@ def get_user(pool, user_id):
 
 
 def delete_user(pool, user_id):
-    execute_update_query(pool, queries.delete_user, user_id=user_id)
+    execute_update_query(
+        pool,
+        queries.delete_user,
+        user_id=user_id
+    )
 
 
 def update_user(pool, user_id, first_name, last_name):
@@ -57,7 +64,7 @@ def update_user(pool, user_id, first_name, last_name):
     )
 
 
-# Создание группы и получение id
+# Создание группы и получение id ###################################################################################
 
 
 def add_group(pool, user_id, name):
@@ -93,19 +100,6 @@ def get_id_group_by_name(pool, user_id, name):
     return result[0]
 
 
-def get_id_group(pool, user_id):
-    result = execute_select_query(
-        pool,
-        queries.get_id_group,
-        user_id=user_id,
-    )
-
-    if len(result) != 1:
-        return None
-
-    return result[0]
-
-
 def get_by_id_group(pool, group_id):
     result = execute_select_query(
         pool,
@@ -118,7 +112,8 @@ def get_by_id_group(pool, group_id):
 
     return result[0]
 
-# Получение всех групп
+
+# Получение всех групп #############################################################################################
 
 
 def get_user_groups(pool, user_id):
@@ -131,7 +126,7 @@ def get_user_groups(pool, user_id):
     if len(result) == 0:
         return None
 
-    return result[0]
+    return result
 
 
 def get_not_user_groups(pool, user_id):
@@ -144,7 +139,44 @@ def get_not_user_groups(pool, user_id):
     if len(result) == 0:
         return None
 
-    return result[0]
+    return result
+
+
+# Удаление группы и из них
+
+
+def delete_all_user_group(pool, user_id):
+    execute_update_query(
+        pool,
+        queries.delete_all_user_group,
+        user_id=user_id
+    )
+
+
+def delete_from_user_group(pool, user_id):
+    result = get_user_groups(pool, user_id)
+    for gr in result:
+        execute_update_query(
+            pool,
+            queries.delete_all_members_from_user_group,
+            group_id=gr["group_id"]
+        )
+
+
+def delete_from_not_user_group(pool, user_id):
+    execute_update_query(
+        pool,
+        queries.delete_user_from_not_user_group,
+        user_id=user_id,
+    )
+
+
+def delete_group_by_id(pool, user_id):
+    execute_update_query(
+        pool,
+        queries.delete_user,
+        user_id=user_id
+    )
 
 
 # Вступление в группу

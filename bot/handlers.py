@@ -4,9 +4,14 @@ from logs import logged_execution
 from user_interaction import texts
 
 
-@logged_execution
-def handle_start(message, bot, pool):
-    bot.send_message(message.chat.id, texts.START, reply_markup=keyboards.EMPTY)
+def check_register(message, bot, current_data):
+    if not current_data:
+        bot.send_message(
+            message.chat.id, texts.NOT_REGISTERED, reply_markup=keyboards.EMPTY
+        )
+        return 1
+    else:
+        return 0
 
 
 @logged_execution
@@ -16,31 +21,18 @@ def handle_register(message, bot, pool):
     if current_data:
         bot.send_message(
             message.chat.id,
-            texts.ALREADY_REGISTERED.format(
-                current_data["first_name"],
-                current_data["last_name"],
-            ),
+            texts.START,
             reply_markup=keyboards.EMPTY,
         )
         return
 
     bot.send_message(
         message.chat.id,
-        texts.FIRST_NAME,
-        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+        texts.START + texts.FIRST_NAME,
+        reply_markup=keyboards.EMPTY,
     )
     bot.set_state(
         message.from_user.id, states.RegisterState.first_name, message.chat.id
-    )
-
-
-@logged_execution
-def handle_cancel_registration(message, bot, pool):
-    bot.delete_state(message.from_user.id, message.chat.id)
-    bot.send_message(
-        message.chat.id,
-        texts.CANCEL_REGISTER,
-        reply_markup=keyboards.EMPTY,
     )
 
 
@@ -52,7 +44,7 @@ def handle_get_first_name(message, bot, pool):
     bot.send_message(
         message.chat.id,
         texts.LAST_NAME,
-        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+        reply_markup=keyboards.EMPTY,
     )
 
 
@@ -76,10 +68,7 @@ def handle_get_last_name(message, bot, pool):
 def handle_show_data(message, bot, pool):
     current_data = db_model.get_user(pool, message.from_user.id)
 
-    if not current_data:
-        bot.send_message(
-            message.chat.id, texts.NOT_REGISTERED, reply_markup=keyboards.EMPTY
-        )
+    if check_register(message, bot, current_data):
         return
 
     bot.send_message(
@@ -94,10 +83,7 @@ def handle_show_data(message, bot, pool):
 @logged_execution
 def handle_delete_account(message, bot, pool):
     current_data = db_model.get_user(pool, message.from_user.id)
-    if not current_data:
-        bot.send_message(
-            message.chat.id, texts.NOT_REGISTERED, reply_markup=keyboards.EMPTY
-        )
+    if check_register(message, bot, current_data):
         return
 
     bot.send_message(
@@ -124,6 +110,11 @@ def handle_finish_delete_account(message, bot, pool):
 
     if texts.DELETE_ACCOUNT_OPTIONS[message.text]:
         db_model.delete_user(pool, message.from_user.id)
+        if db_model.get_user_groups(pool, message.from_user.id):
+            db_model.delete_from_user_group(pool, message.from_user.id)
+            db_model.delete_all_user_group(pool, message.from_user.id)
+        if db_model.get_not_user_groups(pool, message.from_user.id):
+            db_model.delete_from_not_user_group(pool, message.from_user.id)
         bot.send_message(
             message.chat.id,
             texts.DELETE_ACCOUNT_DONE,
@@ -140,11 +131,7 @@ def handle_finish_delete_account(message, bot, pool):
 @logged_execution
 def handle_change_data(message, bot, pool):
     current_data = db_model.get_user(pool, message.from_user.id)
-
-    if not current_data:
-        bot.send_message(
-            message.chat.id, texts.NOT_REGISTERED, reply_markup=keyboards.EMPTY
-        )
+    if check_register(message, bot, current_data):
         return
 
     bot.set_state(
@@ -180,8 +167,15 @@ def handle_choose_field_to_change(message, bot, pool):
     bot.set_state(
         message.from_user.id, states.ChangeDataState.write_new_value, message.chat.id
     )
+
+    field = message.text
+    if field == "Имя":
+        field = "first_name"
+    else:
+        field = "last_name"
+
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        data["field"] = message.text
+        data["field"] = field
 
     bot.send_message(
         message.chat.id,
@@ -195,11 +189,10 @@ def handle_save_changed_data(message, bot, pool):
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         field = data["field"]
 
-    new_value = message.text
-
     bot.delete_state(message.from_user.id, message.chat.id)
+
     current_data = db_model.get_user(pool, message.from_user.id)
-    current_data[field] = new_value
+    current_data[field] = message.text
     db_model.update_user(pool, **current_data)
 
     bot.send_message(
@@ -214,6 +207,10 @@ def handle_save_changed_data(message, bot, pool):
 
 @logged_execution
 def handle_create_group(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
     bot.send_message(
         message.chat.id,
         texts.GROUP_NAME,
@@ -256,6 +253,10 @@ def handle_get_group_name(message, bot, pool):
 
 @logged_execution
 def handle_show_groups(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
     current_data = db_model.get_user_groups(pool, message.from_user.id)
     current_data_2 = db_model.get_not_user_groups(pool, message.from_user.id)
 
@@ -265,32 +266,56 @@ def handle_show_groups(message, bot, pool):
         )
         return
     elif not current_data:
+        txt = texts.SHOW_ALL_GROUPS
+        for c in current_data_2:
+            txt += texts.ALL_GROUPS_DATA.format(
+                c["name"], c["first_name"], c["last_name"]
+            )
         bot.send_message(
             message.chat.id,
-            texts.SHOW_ALL_GROUPS.format(
-                current_data_2["name"], current_data_2["first_name"], current_data_2["last_name"]
-            ),
+            # texts.SHOW_ALL_GROUPS.format(
+            #     current_data_2["name"], current_data_2["first_name"], current_data_2["last_name"]
+            # ),
+            txt,
             reply_markup=keyboards.EMPTY,
         )
         return
     elif not current_data_2:
+        txt = texts.SHOW_USER_GROUPS
+        for c in current_data:
+            txt += texts.USER_GROUPS_DATA.format(
+                c["group_id"], c["name"]
+            )
         bot.send_message(
             message.chat.id,
-            texts.SHOW_USER_GROUPS.format(
-                current_data["group_id"], current_data["name"]
-            ),
+            # texts.SHOW_USER_GROUPS.format(
+            #     current_data["group_id"], current_data["name"]
+            # ),
+            txt,
             reply_markup=keyboards.EMPTY,
         )
         return
 
+    txt2 = texts.SHOW_ALL_GROUPS
+    for c in current_data_2:
+        txt2 += texts.ALL_GROUPS_DATA.format(
+            c["name"], c["first_name"], c["last_name"]
+        )
+    txt1 = texts.SHOW_USER_GROUPS
+    for c in current_data_2:
+        txt1 += texts.USER_GROUPS_DATA.format(
+            c["group_id"], c["name"]
+        )
+
     bot.send_message(
         message.chat.id,
-        texts.SHOW_USER_GROUPS.format(
-            current_data["group_id"], current_data["name"]
-        ) +
-        texts.SHOW_ALL_GROUPS.format(
-            current_data_2["name"], current_data_2["first_name"], current_data_2["last_name"]
-        ),
+        # texts.SHOW_USER_GROUPS.format(
+        #     current_data["group_id"], current_data["name"]
+        # ) +
+        # texts.SHOW_ALL_GROUPS.format(
+        #     current_data_2["name"], current_data_2["first_name"], current_data_2["last_name"]
+        # ),
+        txt1 + txt2,
         reply_markup=keyboards.EMPTY,
     )
 
@@ -300,6 +325,10 @@ def handle_show_groups(message, bot, pool):
 
 @logged_execution
 def handle_join_group(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
     bot.send_message(
         message.chat.id,
         texts.JOIN_GROUP,
@@ -322,7 +351,6 @@ def handle_cancel_join_group(message, bot, pool):
 
 @logged_execution
 def handle_get_group_id(message, bot, pool):
-
     if not message.text.isdigit():
         bot.send_message(
             message.chat.id,
