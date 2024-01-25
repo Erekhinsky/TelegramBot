@@ -83,6 +83,7 @@ def add_group(pool, user_id, name):
         user_group_id=user_group_id,
         user_id=user_id,
         group_id=group_id,
+        joined=True,
     )
 
 
@@ -153,7 +154,7 @@ def delete_all_user_group(pool, user_id):
     )
 
 
-def delete_from_user_group(pool, user_id):
+def delete_from_user_groups(pool, user_id):
     result = get_user_groups(pool, user_id)
     for gr in result:
         execute_update_query(
@@ -161,6 +162,14 @@ def delete_from_user_group(pool, user_id):
             queries.delete_all_members_from_user_group,
             group_id=gr["group_id"]
         )
+
+
+def delete_from_user_group(pool, group_id):
+    execute_update_query(
+        pool,
+        queries.delete_all_members_from_user_group,
+        group_id=group_id
+    )
 
 
 def delete_from_not_user_group(pool, user_id):
@@ -171,15 +180,15 @@ def delete_from_not_user_group(pool, user_id):
     )
 
 
-def delete_group_by_id(pool, user_id):
+def delete_group_by_id(pool, group_id):
     execute_update_query(
         pool,
-        queries.delete_user,
-        user_id=user_id
+        queries.delete_group_by_id,
+        group_id=group_id
     )
 
 
-# Вступление в группу
+# Вступление в группу и выход
 
 
 def add_to_group(pool, user_id, group_id):
@@ -190,4 +199,77 @@ def add_to_group(pool, user_id, group_id):
         user_group_id=user_group_id,
         user_id=user_id,
         group_id=group_id,
+        joined=False,
     )
+
+
+def left_group(pool, user_id, group_id):
+    execute_update_query(
+        pool,
+        queries.left_group,
+        user_id=user_id,
+        group_id=group_id
+    )
+
+
+# Принять в группу и удалить
+
+
+def accept_join(pool, user_id, group_id, user_id_join):
+    execute_update_query(
+        pool,
+        queries.accept_join,
+        user_id=user_id_join,
+        group_id=group_id,
+    )
+
+
+def delete_member(pool, group_id, user_id_delete):
+    execute_update_query(
+        pool,
+        queries.delete_member,
+        user_id=user_id_delete,
+        group_id=group_id,
+    )
+
+# Просмотр участников группы и заявок на вступление
+
+
+def get_members(pool, user_id, group_id):
+    result = execute_select_query(
+        pool,
+        queries.get_members,
+        group_id=group_id,
+    )
+
+    if len(result) == 0:
+        return None
+
+    return result
+
+
+def get_member(pool, user_id, group_id):
+    result = execute_select_query(
+        pool,
+        queries.get_member,
+        user_id=user_id,
+        group_id=group_id,
+    )
+
+    if len(result) == 0:
+        return None
+
+    return result
+
+
+def get_want_members(pool, user_id):
+    result = execute_select_query(
+        pool,
+        queries.get_want_members,
+        user_id=user_id
+    )
+
+    if len(result) == 0:
+        return None
+
+    return result

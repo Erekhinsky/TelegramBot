@@ -106,3 +106,26 @@ class CreateGroup(StatesGroup):
 class JoinGroup(StatesGroup):
     setId = State()
 
+
+class LeftGroup(StatesGroup):
+    setId = State()
+
+
+class DeleteGroup(StatesGroup):
+    setId = State()
+
+
+class ShowMembers(StatesGroup):
+    setId = State()
+
+
+class AcceptJoin(StatesGroup):
+    setUserId = State()
+    setGroupId = State()
+
+
+class DeleteMember(StatesGroup):
+    setUserId = State()
+    setGroupId = State()
+
+

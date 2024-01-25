@@ -46,7 +46,7 @@ def get_change_data_handlers():
     return [
         Handler(callback=handlers.handle_change_data, commands=["change_data"]),
         Handler(
-            callback=handlers.handle_cancel_change_data,
+            callback=handlers.handle_cancel,
             commands=["cancel"],
             state=[
                 bot_states.ChangeDataState.select_field,
@@ -68,7 +68,7 @@ def get_create_group_handlers():
     return [
         Handler(callback=handlers.handle_create_group, commands=["create_group"]),
         Handler(
-            callback=handlers.handle_cancel_create_group,
+            callback=handlers.handle_cancel,
             commands=["cancel"],
             state=[
                 bot_states.CreateGroup.name,
@@ -87,19 +87,131 @@ def get_show_groups_handlers():
     ]
 
 
+def get_show_members_handlers():
+    return [
+        Handler(callback=handlers.handle_show_members, commands=["show_members"]),
+        Handler(
+            callback=handlers.handle_cancel,
+            commands=["cancel"],
+            state=[
+                bot_states.ShowMembers.setId,
+            ],
+        ),
+        Handler(
+            callback=handlers.handle_get_group_id_for_show,
+            state=bot_states.ShowMembers.setId,
+        ),
+    ]
+
+
 def get_join_group_handlers():
     return [
         Handler(callback=handlers.handle_join_group, commands=["join"]),
         Handler(
-            callback=handlers.handle_cancel_join_group,
+            callback=handlers.handle_cancel,
             commands=["cancel"],
             state=[
                 bot_states.JoinGroup.setId,
             ],
         ),
         Handler(
-            callback=handlers.handle_get_group_id,
+            callback=handlers.handle_get_group_id_for_join,
             state=bot_states.JoinGroup.setId,
+        ),
+    ]
+
+
+def get_left_group_handlers():
+    return [
+        Handler(callback=handlers.handle_left_group, commands=["left_group"]),
+        Handler(
+            callback=handlers.handle_cancel,
+            commands=["cancel"],
+            state=[
+                bot_states.LeftGroup.setId,
+            ],
+        ),
+        Handler(
+            callback=handlers.handle_get_group_id_for_left,
+            state=bot_states.LeftGroup.setId,
+        ),
+    ]
+
+
+def get_delete_group_handlers():
+    return [
+        Handler(callback=handlers.handle_delete_group, commands=["delete_group"]),
+        Handler(
+            callback=handlers.handle_cancel,
+            commands=["cancel"],
+            state=[
+                bot_states.DeleteGroup.setId,
+            ],
+        ),
+        Handler(
+            callback=handlers.handle_get_group_id_for_delete_group,
+            state=bot_states.DeleteGroup.setId,
+        ),
+    ]
+
+
+def get_show_want_members_handlers():
+    return [
+        Handler(callback=handlers.handle_show_want_members, commands=["show_want_join"]),
+        Handler(
+            callback=handlers.handle_cancel,
+            commands=["cancel"],
+            state=[
+                bot_states.JoinGroup.setId,
+            ],
+        ),
+        Handler(
+            callback=handlers.handle_get_group_id_for_join,
+            state=bot_states.JoinGroup.setId,
+        ),
+    ]
+
+
+def get_join_accept_handlers():
+    return [
+        Handler(callback=handlers.handle_accept_join, commands=["join_accepts"]),
+        Handler(
+            callback=handlers.handle_cancel,
+            commands=["cancel"],
+            state=[
+                bot_states.AcceptJoin.setUserId,
+                bot_states.AcceptJoin.setGroupId,
+            ],
+        ),
+        Handler(
+            callback=handlers.handle_get_group_id_for_accept_join,
+            state=bot_states.AcceptJoin.setGroupId,
+        ),
+        Handler(
+            callback=handlers.handle_get_user_id_for_accept_join,
+            state=bot_states.AcceptJoin.setUserId,
+        ),
+    ]
+
+
+def get_delete_member_handlers():
+    return [
+        Handler(callback=handlers.handle_delete_member, commands=["delete_member"]),
+        Handler(
+            callback=handlers.handle_cancel,
+            commands=["cancel"],
+            state=[
+                bot_states.DeleteMember.setUserId,
+                bot_states.DeleteMember.setGroupId,
+            ],
+        ),
+        Handler(
+            callback=handlers.handle_get_group_id_for_delete,
+            state=bot_states.DeleteMember.setGroupId,
+        ),
+        Handler(
+            callback=handlers.handle_get_user_id_for_delete,
+            state=bot_states.DeleteMember.setUserId,
         ),
     ]
 
@@ -113,9 +225,17 @@ def create_bot(bot_token, pool):
     handlers.extend(get_show_data_handlers())
     handlers.extend(get_delete_account_handlers())
     handlers.extend(get_change_data_handlers())
+
     handlers.extend(get_create_group_handlers())
+    handlers.extend(get_join_accept_handlers())
+    handlers.extend(get_show_members_handlers())
+    handlers.extend(get_show_want_members_handlers())
+    handlers.extend(get_delete_member_handlers())
+    handlers.extend(get_delete_group_handlers())
+
     handlers.extend(get_show_groups_handlers())
     handlers.extend(get_join_group_handlers())
+    handlers.extend(get_left_group_handlers())
 
     for handler in handlers:
         bot.register_message_handler(

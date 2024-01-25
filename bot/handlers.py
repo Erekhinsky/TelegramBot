@@ -7,11 +7,73 @@ from user_interaction import texts
 def check_register(message, bot, current_data):
     if not current_data:
         bot.send_message(
-            message.chat.id, texts.NOT_REGISTERED, reply_markup=keyboards.EMPTY
+            message.chat.id,
+            texts.NOT_REGISTERED,
+            reply_markup=keyboards.EMPTY,
         )
         return 1
     else:
         return 0
+
+
+def check_digit(message, bot):
+    if not message.text.isdigit():
+        bot.send_message(
+            message.chat.id,
+            texts.IT_NOT_DIGIT,
+            reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+        )
+        return 1
+    return 0
+
+
+def check_exist_group(message, bot, pool):
+
+    if check_digit(message, bot):
+        return 1
+
+    group_id = int(message.text)
+    current_data = db_model.get_by_id_group(pool, group_id)
+
+    if not current_data:
+        bot.send_message(
+            message.chat.id,
+            texts.IT_NOT_GROUP_ID,
+            reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+        )
+        return 1
+
+    return group_id, current_data
+
+
+def check_full_id_group(message, bot, pool):
+
+    group_id, current_data = check_exist_group(message, bot, pool)
+
+    if not group_id or not current_data:
+        return 1
+
+    if current_data["user_id"] != message.from_user.id:
+        bot.send_message(
+            message.chat.id,
+            texts.NOT_OWNER,
+            reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+        )
+        return 1
+
+    return group_id, current_data
+
+#####################################################################################################################
+
+
+@logged_execution
+def handle_cancel(message, bot, pool):
+    bot.delete_state(message.from_user.id, message.chat.id)
+    bot.send_message(
+        message.chat.id,
+        texts.CANCEL,
+        reply_markup=keyboards.EMPTY,
+    )
 
 
 @logged_execution
@@ -67,7 +129,6 @@ def handle_get_last_name(message, bot, pool):
 @logged_execution
 def handle_show_data(message, bot, pool):
     current_data = db_model.get_user(pool, message.from_user.id)
-
     if check_register(message, bot, current_data):
         return
 
@@ -111,7 +172,7 @@ def handle_finish_delete_account(message, bot, pool):
     if texts.DELETE_ACCOUNT_OPTIONS[message.text]:
         db_model.delete_user(pool, message.from_user.id)
         if db_model.get_user_groups(pool, message.from_user.id):
-            db_model.delete_from_user_group(pool, message.from_user.id)
+            db_model.delete_from_user_groups(pool, message.from_user.id)
             db_model.delete_all_user_group(pool, message.from_user.id)
         if db_model.get_not_user_groups(pool, message.from_user.id):
             db_model.delete_from_not_user_group(pool, message.from_user.id)
@@ -141,16 +202,6 @@ def handle_change_data(message, bot, pool):
         message.chat.id,
         texts.SELECT_FIELD,
         reply_markup=keyboards.get_reply_keyboard(texts.FIELD_LIST, ["/cancel"]),
-    )
-
-
-@logged_execution
-def handle_cancel_change_data(message, bot, pool):
-    bot.delete_state(message.from_user.id, message.chat.id)
-    bot.send_message(
-        message.chat.id,
-        texts.CANCEL_CHANGE,
-        reply_markup=keyboards.EMPTY,
     )
 
 
@@ -202,7 +253,7 @@ def handle_save_changed_data(message, bot, pool):
     )
 
 
-# Создание группы
+# Создание группы #############################################################################################
 
 
 @logged_execution
@@ -218,16 +269,6 @@ def handle_create_group(message, bot, pool):
     )
     bot.set_state(
         message.from_user.id, states.CreateGroup.name, message.chat.id
-    )
-
-
-@logged_execution
-def handle_cancel_create_group(message, bot, pool):
-    bot.delete_state(message.from_user.id, message.chat.id)
-    bot.send_message(
-        message.chat.id,
-        texts.CANCEL_CREATE_GROUP,
-        reply_markup=keyboards.EMPTY,
     )
 
 
@@ -248,7 +289,7 @@ def handle_get_group_name(message, bot, pool):
     )
 
 
-# Получение всех групп
+# Получение всех групп #########################################################################################
 
 
 @logged_execution
@@ -269,13 +310,10 @@ def handle_show_groups(message, bot, pool):
         txt = texts.SHOW_ALL_GROUPS
         for c in current_data_2:
             txt += texts.ALL_GROUPS_DATA.format(
-                c["name"], c["first_name"], c["last_name"]
+                c["group_id"], c["name"], c["first_name"], c["last_name"]
             )
         bot.send_message(
             message.chat.id,
-            # texts.SHOW_ALL_GROUPS.format(
-            #     current_data_2["name"], current_data_2["first_name"], current_data_2["last_name"]
-            # ),
             txt,
             reply_markup=keyboards.EMPTY,
         )
@@ -288,9 +326,6 @@ def handle_show_groups(message, bot, pool):
             )
         bot.send_message(
             message.chat.id,
-            # texts.SHOW_USER_GROUPS.format(
-            #     current_data["group_id"], current_data["name"]
-            # ),
             txt,
             reply_markup=keyboards.EMPTY,
         )
@@ -299,28 +334,22 @@ def handle_show_groups(message, bot, pool):
     txt2 = texts.SHOW_ALL_GROUPS
     for c in current_data_2:
         txt2 += texts.ALL_GROUPS_DATA.format(
-            c["name"], c["first_name"], c["last_name"]
+            c["group_id"], c["name"], c["first_name"], c["last_name"]
         )
     txt1 = texts.SHOW_USER_GROUPS
-    for c in current_data_2:
+    for c in current_data:
         txt1 += texts.USER_GROUPS_DATA.format(
             c["group_id"], c["name"]
         )
 
     bot.send_message(
         message.chat.id,
-        # texts.SHOW_USER_GROUPS.format(
-        #     current_data["group_id"], current_data["name"]
-        # ) +
-        # texts.SHOW_ALL_GROUPS.format(
-        #     current_data_2["name"], current_data_2["first_name"], current_data_2["last_name"]
-        # ),
         txt1 + txt2,
         reply_markup=keyboards.EMPTY,
     )
 
 
-# Вступление в группу
+# Вступление в группу #############################################################################################
 
 
 @logged_execution
@@ -340,34 +369,10 @@ def handle_join_group(message, bot, pool):
 
 
 @logged_execution
-def handle_cancel_join_group(message, bot, pool):
-    bot.delete_state(message.from_user.id, message.chat.id)
-    bot.send_message(
-        message.chat.id,
-        texts.CANCEL_JOIN_GROUP,
-        reply_markup=keyboards.EMPTY,
-    )
+def handle_get_group_id_for_join(message, bot, pool):
 
-
-@logged_execution
-def handle_get_group_id(message, bot, pool):
-    if not message.text.isdigit():
-        bot.send_message(
-            message.chat.id,
-            texts.IT_NOT_DIGIT,
-            reply_markup=keyboards.EMPTY,
-        )
-        return
-
-    group_id = int(message.text)
-    current_data = db_model.get_by_id_group(pool, group_id)
-
-    if not current_data:
-        bot.send_message(
-            message.chat.id,
-            texts.IT_NOT_GROUP_ID,
-            reply_markup=keyboards.EMPTY,
-        )
+    group_id, current_data = check_exist_group(message, bot, pool)
+    if not group_id or not current_data:
         return
 
     bot.delete_state(message.from_user.id, message.chat.id)
@@ -378,5 +383,328 @@ def handle_get_group_id(message, bot, pool):
         texts.OK_JOIN_GROUP.format(
             current_data["name"]
         ),
+        reply_markup=keyboards.EMPTY,
+    )
+
+
+# Выйти из группы #############################################################################################
+
+
+@logged_execution
+def handle_left_group(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
+    bot.send_message(
+        message.chat.id,
+        texts.LEFT_GROUP,
+        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+    )
+    bot.set_state(
+        message.from_user.id, states.LeftGroup.setId, message.chat.id
+    )
+
+
+@logged_execution
+def handle_get_group_id_for_left(message, bot, pool):
+
+    group_id, current_data = check_exist_group(message, bot, pool)
+    if not group_id or not current_data:
+        return
+
+    if current_data["user_id"] == message.from_user.id:
+        bot.send_message(
+            message.chat.id,
+            texts.YOU_OWNER,
+            reply_markup=keyboards.EMPTY,
+        )
+        handle_delete_group(message, bot, pool)
+        return
+
+    if not db_model.get_member(pool, message.from_user.id, group_id):
+        bot.send_message(
+            message.chat.id,
+            texts.YOU_NOT_MEMBER,
+            reply_markup=keyboards.EMPTY,
+        )
+        return
+
+    bot.delete_state(message.from_user.id, message.chat.id)
+    db_model.left_group(pool, message.from_user.id, group_id)
+
+    bot.send_message(
+        message.chat.id,
+        texts.OK_LEFT_GROUP,
+        reply_markup=keyboards.EMPTY,
+    )
+
+
+# Удалить группу #############################################################################################
+
+
+@logged_execution
+def handle_delete_group(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
+    bot.send_message(
+        message.chat.id,
+        texts.DELETE_GROUP,
+        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+    )
+    bot.set_state(
+        message.from_user.id, states.DeleteGroup.setId, message.chat.id
+    )
+
+
+@logged_execution
+def handle_get_group_id_for_delete_group(message, bot, pool):
+
+    group_id, current_data = check_full_id_group(message, bot, pool)
+    if not group_id or not current_data:
+        return
+
+    bot.delete_state(message.from_user.id, message.chat.id)
+    db_model.delete_from_user_group(pool, group_id)
+    db_model.delete_group_by_id(pool, group_id)
+
+    bot.send_message(
+        message.chat.id,
+        texts.OK_DELETE,
+        reply_markup=keyboards.EMPTY,
+    )
+
+
+# Принять пользователя в группу ############################################################
+
+
+@logged_execution
+def handle_accept_join(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
+    bot.send_message(
+        message.chat.id,
+        texts.ACCEPT_JOIN,
+        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+    )
+    bot.set_state(
+        message.from_user.id, states.AcceptJoin.setGroupId, message.chat.id
+    )
+
+
+@logged_execution
+def handle_get_group_id_for_accept_join(message, bot, pool):
+
+    group_id, current_data = check_full_id_group(message, bot, pool)
+    if not group_id or not current_data:
+        return
+
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        data["group_id"] = group_id
+
+    bot.set_state(
+        message.from_user.id, states.AcceptJoin.setUserId, message.chat.id
+    )
+
+    bot.send_message(
+        message.chat.id,
+        texts.GET_USER_ID,
+        reply_markup=keyboards.EMPTY,
+    )
+
+
+@logged_execution
+def handle_get_user_id_for_accept_join(message, bot, pool):
+
+    if check_digit(message, bot):
+        return
+
+    user_id = int(message.text)
+    current_data = db_model.get_user(pool, user_id)
+
+    if not current_data:
+        bot.send_message(
+            message.chat.id,
+            texts.USER_NOT_FOUND,
+            reply_markup=keyboards.EMPTY,
+        )
+        return
+
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        group_id = data["group_id"]
+    bot.delete_state(message.from_user.id, message.chat.id)
+
+    db_model.accept_join(pool, message.from_user.id, group_id, user_id)
+
+    bot.send_message(
+        message.chat.id,
+        texts.ACCEPT_JOIN_OK,
+        reply_markup=keyboards.EMPTY,
+    )
+
+
+# Удалить пользователя из группы ############################################################
+
+
+@logged_execution
+def handle_delete_member(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
+    bot.send_message(
+        message.chat.id,
+        texts.DELETE_MEMBER,
+        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+    )
+    bot.set_state(
+        message.from_user.id, states.DeleteMember.setGroupId, message.chat.id
+    )
+
+
+@logged_execution
+def handle_get_group_id_for_delete(message, bot, pool):
+
+    group_id, current_data = check_exist_group(message, bot, pool)
+    if not group_id or not current_data:
+        return
+
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        data["group_id"] = group_id
+
+    bot.set_state(
+        message.from_user.id, states.DeleteMember.setUserId, message.chat.id
+    )
+
+    bot.send_message(
+        message.chat.id,
+        texts.GET_USER_ID,
+        reply_markup=keyboards.EMPTY,
+    )
+
+
+@logged_execution
+def handle_get_user_id_for_delete(message, bot, pool):
+    if check_digit(message, bot):
+        return
+
+    user_id = int(message.text)
+    current_data = db_model.get_user(pool, user_id)
+
+    if not current_data:
+        bot.send_message(
+            message.chat.id,
+            texts.USER_NOT_FOUND,
+            reply_markup=keyboards.EMPTY,
+        )
+        return
+
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        group_id = data["group_id"]
+
+    bot.delete_state(message.from_user.id, message.chat.id)
+
+    db_model.delete_member(pool, group_id, user_id)
+
+    bot.send_message(
+        message.chat.id,
+        texts.DELETE_MEMBER_OK,
+        reply_markup=keyboards.EMPTY,
+    )
+
+
+# Показать участников группы #########################################################################################
+
+
+@logged_execution
+def handle_show_members(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
+    bot.send_message(
+        message.chat.id,
+        texts.SHOW_MEMBERS,
+        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+    )
+
+    bot.set_state(
+        message.from_user.id, states.ShowMembers.setId, message.chat.id
+    )
+
+
+@logged_execution
+def handle_get_group_id_for_show(message, bot, pool):
+
+    group_id, current_data = check_full_id_group(message, bot, pool)
+    if not group_id or not current_data:
+        return
+
+    bot.delete_state(message.from_user.id, message.chat.id)
+    current_data = db_model.get_members(pool, message.from_user.id, group_id)
+
+    if not current_data:
+        bot.send_message(
+            message.chat.id,
+            texts.NOT_MEMBERS,
+            reply_markup=keyboards.EMPTY,
+        )
+        return
+
+    txt = texts.SHOW_MEMBERS_PRE.format(
+        current_data[0]["name"]
+    )
+
+    for u in current_data:
+        txt += texts.MEMBER.format(
+            u["user_id"],
+            u["first_name"],
+            u["last_name"],
+        )
+
+    bot.send_message(
+        message.chat.id,
+        txt,
+        reply_markup=keyboards.EMPTY,
+    )
+
+
+# Показать желающих вступить в группу ########################################################################
+
+
+@logged_execution
+def handle_show_want_members(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
+    current_data = db_model.get_want_members(pool, message.from_user.id)
+
+    if not current_data:
+        bot.send_message(
+            message.chat.id,
+            texts.NOT_WANT_MEMBERS,
+            reply_markup=keyboards.EMPTY,
+        )
+        return
+
+    txt = texts.SHOW_WANT_MEMBERS
+
+    for u in current_data:
+        txt += texts.WANT_MEMBER.format(
+            u["group_id"],
+            u["name"],
+            u["user_id"],
+            u["first_name"],
+            u["last_name"]
+        )
+
+    bot.send_message(
+        message.chat.id,
+        txt,
         reply_markup=keyboards.EMPTY,
     )
