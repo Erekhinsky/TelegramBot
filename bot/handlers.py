@@ -63,6 +63,27 @@ def check_full_id_group(message, bot, pool):
 
     return group_id, current_data
 
+
+def check_name_exist(message, bot, pool):
+
+    name = message.text
+    names = db_model.get_all_names(pool)
+
+    flag = 0
+    for n in names:
+        if name == n["name"]:
+            flag = 1
+
+    if not flag:
+        bot.send_message(
+            message.chat.id,
+            texts.NOT_FOUND_NAME,
+            reply_markup=keyboards.get_reply_keyboard(["/cancel"])
+        )
+        return 1
+
+    return name
+
 #####################################################################################################################
 
 
@@ -118,6 +139,7 @@ def handle_get_last_name(message, bot, pool):
 
     bot.delete_state(message.from_user.id, message.chat.id)
     db_model.add_user(pool, message.from_user.id, first_name, last_name)
+    db_model.add_user_rate(pool, message.from_user.id)
 
     bot.send_message(
         message.chat.id,
@@ -171,6 +193,7 @@ def handle_finish_delete_account(message, bot, pool):
 
     if texts.DELETE_ACCOUNT_OPTIONS[message.text]:
         db_model.delete_user(pool, message.from_user.id)
+        db_model.delete_user_rate(pool, message.from_user.id)
         if db_model.get_user_groups(pool, message.from_user.id):
             db_model.delete_from_user_groups(pool, message.from_user.id)
             db_model.delete_all_user_group(pool, message.from_user.id)
@@ -707,4 +730,335 @@ def handle_show_want_members(message, bot, pool):
         message.chat.id,
         txt,
         reply_markup=keyboards.EMPTY,
+    )
+
+
+# Забанить имена ###########################################################################################
+
+@logged_execution
+def handle_ban_name(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
+    bot.send_message(
+        message.chat.id,
+        texts.BAN_NAME,
+        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+    )
+    bot.set_state(
+        message.from_user.id, states.BanName.setName, message.chat.id
+    )
+
+
+@logged_execution
+def handle_get_name_for_ban(message, bot, pool):
+
+    name = check_name_exist(message, bot, pool)
+    if name == 1:
+        return
+
+    bot.delete_state(message.from_user.id, message.chat.id)
+    banned = db_model.get_baned_names(pool, message.from_user.id)
+
+    flag = 0
+    if not banned:
+        bot.send_message(
+            message.chat.id,
+            texts.NOT_BANNED_NAMES,
+            reply_markup=keyboards.EMPTY,
+        )
+        return
+
+    for ban in banned:
+        if name == ban["name"]:
+            flag = 1
+            break
+
+    if flag:
+        bot.send_message(
+            message.chat.id,
+            texts.NAME_NOT_BANNED,
+            reply_markup=keyboards.get_reply_keyboard(["/cancel"])
+        )
+        return
+
+    db_model.ban_name(pool, message.from_user.id, name)
+
+    bot.send_message(
+        message.chat.id,
+        texts.BAN_OK.format(
+            name
+        ),
+        reply_markup=keyboards.EMPTY,
+    )
+
+
+# Разблокирование имени #########################################################################
+
+
+@logged_execution
+def handle_unban_name(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
+    bot.send_message(
+        message.chat.id,
+        texts.UNBAN_NAME,
+        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+    )
+    bot.set_state(
+        message.from_user.id, states.UnbanName.setName, message.chat.id
+    )
+
+
+@logged_execution
+def handle_get_name_for_unban(message, bot, pool):
+    name = check_name_exist(message, bot, pool)
+    if name == 1:
+        return
+
+    bot.delete_state(message.from_user.id, message.chat.id)
+    banned = db_model.get_baned_names(pool, message.from_user.id)
+
+    flag = 0
+    if not banned:
+        bot.send_message(
+            message.chat.id,
+            texts.NOT_BANNED_NAMES,
+            reply_markup=keyboards.EMPTY,
+        )
+        return
+
+    for ban in banned:
+        if name == ban["name"]:
+            flag = 1
+            break
+
+    if not flag:
+        bot.send_message(
+            message.chat.id,
+            texts.NAME_NOT_BANNED,
+            reply_markup=keyboards.get_reply_keyboard(["/cancel"])
+        )
+        return
+
+    db_model.unban_name(pool, message.from_user.id, name)
+
+    bot.send_message(
+        message.chat.id,
+        texts.UNBAN_OK.format(
+            name
+        ),
+        reply_markup=keyboards.EMPTY,
+    )
+
+
+# Получение заблокированных имен #########################################################################
+
+
+@logged_execution
+def handle_get_baned_names(message, bot, pool):
+
+    result = db_model.get_baned_names(pool, message.from_user.id)
+
+    if not result:
+        bot.send_message(
+            message.chat.id,
+            texts.NOT_BANNED_NAMES,
+            reply_markup=keyboards.EMPTY,
+        )
+        return
+
+    txt = texts.BANNED_NAMES
+    for b in result:
+        txt += texts.NAME.format(
+            b["name"]
+        )
+
+    bot.send_message(
+        message.chat.id,
+        txt,
+        reply_markup=keyboards.EMPTY,
+    )
+
+
+# Получение рейтинга пользователя ############################################################################
+
+@logged_execution
+def handle_get_rate_names(message, bot, pool):
+
+    result = db_model.get_rate_names(pool, message.from_user.id)
+
+    txt = texts.GET_RATE_NAMES
+    for b in result:
+        if b["tier"] == 1 or b["tier"] == 2:
+            txt += texts.RATE_NAME.format(
+                b["name"],
+                b["banned"],
+                b["tier"],
+                b["value"]
+            )
+
+    bot.send_message(
+        message.chat.id,
+        txt,
+        reply_markup=keyboards.EMPTY,
+    )
+
+
+# Ранжирование #########################################################################################
+
+
+@logged_execution
+def handle_rate_names(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
+    bot.set_state(
+        message.from_user.id, states.RateNames.select_field, message.chat.id
+    )
+    bot.send_message(
+        message.chat.id,
+        texts.SELECT_FIELD_RATE,
+        reply_markup=keyboards.get_reply_keyboard(texts.FIELD_LIST_RATE, ["/cancel"]),
+    )
+
+
+@logged_execution
+def handle_choose_field_to_rate(message, bot, pool):
+    field = None
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        field = data["field"]
+        current_data = data[data["field"]]
+
+    if message.text not in texts.FIELD_LIST_RATE and not field:
+        bot.send_message(
+            message.chat.id,
+            texts.UNKNOWN_FIELD,
+            reply_markup=keyboards.get_reply_keyboard(texts.FIELD_LIST_RATE, ["/cancel"]),
+        )
+        return
+
+    if not field:
+        field = message.text
+
+    if field == "Определение Tier" or field == "tier":
+        field = "tier"
+        bot.set_state(
+            message.from_user.id, states.RateNames.chooseTier, message.chat.id
+        )
+        current_data = db_model.get_name_for_tier(pool, message.from_user.id)
+        if not current_data:
+            bot.delete_state(message.from_user.id, message.chat.id)
+            bot.send_message(
+                message.chat.id,
+                texts.NO_CHOOSE_FOR_TIER,
+                reply_markup=keyboards.EMPTY,
+            )
+            return
+        bot.send_message(
+            message.chat.id,
+            texts.CHOOSE_TIER_FOR_NAME.format(
+                current_data["name"]
+            ),
+            reply_markup=keyboards.get_reply_keyboard(texts.FIELD_TIER, ["/cancel"]),
+        )
+
+    elif field == "Сравнение в Tier 1" or field == "compare":
+        field = "compare"
+        bot.set_state(
+            message.from_user.id, states.RateNames.compareNames, message.chat.id
+        )
+        current_data = db_model.get_name_for_compare(pool, message.from_user.id)
+        if not current_data:
+            bot.delete_state(message.from_user.id, message.chat.id)
+            bot.send_message(
+                message.chat.id,
+                texts.NO_COMPARE,
+                reply_markup=keyboards.EMPTY,
+            )
+            return
+        current_data = [current_data[0]["name"], current_data[1]["name"]]
+
+        bot.send_message(
+            message.chat.id,
+            texts.CHOOSE_NAME,
+            reply_markup=keyboards.get_reply_keyboard(current_data, ["/cancel"]),
+        )
+
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        data["field"] = field
+        data[field] = current_data
+
+
+# TODO - Разделение на Мужской и женский фильтр
+
+@logged_execution
+def handle_choose_tier(message, bot, pool):
+    name = None
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        name = data["tier"]["name"]
+
+    if message.text not in texts.FIELD_TIER:
+        bot.send_message(
+            message.chat.id,
+            texts.UNKNOWN_FIELD,
+            reply_markup=keyboards.get_reply_keyboard(texts.FIELD_TIER, ["/cancel"]),
+        )
+        return
+
+    tier = message.text
+
+    if tier == texts.FIELD_TIER[0]:
+        tier = 1
+    elif tier == texts.FIELD_TIER[1]:
+        tier = 2
+    elif tier == texts.FIELD_TIER[2]:
+        tier = 3
+    elif tier == texts.FIELD_TIER[3]:
+        tier = 4
+
+    db_model.update_tier_for_name(pool, message.from_user.id, name, tier)
+
+    bot.set_state(
+        message.from_user.id, states.RateNames.select_field, message.chat.id
+    )
+
+    bot.send_message(
+        message.chat.id,
+        texts.CHOOSE_TIER_OK,
+        reply_markup=keyboards.get_reply_keyboard(texts.FIELD_TIER, ["/cancel"]),
+    )
+
+    handle_choose_field_to_rate(message, bot, pool)
+
+
+@logged_execution
+def handle_compare_names(message, bot, pool):
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        names = data["compare"]
+
+    if message.text not in names:
+        bot.send_message(
+            message.chat.id,
+            texts.UNKNOWN_FIELD,
+            reply_markup=keyboards.get_reply_keyboard(names, ["/cancel"]),
+        )
+        return
+
+    best_name = message.text
+
+    db_model.update_value_for_name(pool, message.from_user.id, best_name)
+
+    bot.set_state(
+        message.from_user.id, states.RateNames.select_field, message.chat.id
+    )
+
+    bot.send_message(
+        message.chat.id,
+        texts.COMPARE_OK,
+        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
     )

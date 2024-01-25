@@ -216,6 +216,79 @@ def get_delete_member_handlers():
     ]
 
 
+def get_ban_name_handlers():
+    return [
+        Handler(callback=handlers.handle_ban_name, commands=["ban_name"]),
+        Handler(
+            callback=handlers.handle_cancel,
+            commands=["cancel"],
+            state=[
+                bot_states.BanName.setName,
+            ],
+        ),
+        Handler(
+            callback=handlers.handle_get_name_for_ban,
+            state=bot_states.BanName.setName,
+        ),
+    ]
+
+
+def get_baned_name_handlers():
+    return [
+        Handler(callback=handlers.handle_get_baned_names, commands=["get_baned_names"]),
+    ]
+
+
+def get_unban_name_handlers():
+    return [
+        Handler(callback=handlers.handle_unban_name, commands=["unban_name"]),
+        Handler(
+            callback=handlers.handle_cancel,
+            commands=["cancel"],
+            state=[
+                bot_states.UnbanName.setName,
+            ],
+        ),
+        Handler(
+            callback=handlers.handle_get_name_for_unban,
+            state=bot_states.UnbanName.setName,
+        ),
+    ]
+
+
+def get_rank_names_handlers():
+    return [
+        Handler(callback=handlers.handle_rate_names, commands=["rate_names"]),
+        Handler(
+            callback=handlers.handle_cancel,
+            commands=["cancel"],
+            state=[
+                bot_states.RateNames.chooseTier,
+                bot_states.RateNames.select_field,
+                bot_states.RateNames.compareNames,
+            ],
+        ),
+        Handler(
+            callback=handlers.handle_choose_field_to_rate,
+            state=bot_states.RateNames.select_field,
+        ),
+        Handler(
+            callback=handlers.handle_choose_tier,
+            state=bot_states.RateNames.chooseTier
+        ),
+        Handler(
+            callback=handlers.handle_compare_names,
+            state=bot_states.RateNames.compareNames
+        ),
+    ]
+
+
+def get_get_rate_handlers():
+    return [
+        Handler(callback=handlers.handle_get_rate_names, commands=["get_rate_names"]),
+    ]
+
+
 def create_bot(bot_token, pool):
     state_storage = bot_states.StateYDBStorage(pool)
     bot = TeleBot(bot_token, state_storage=state_storage)
@@ -236,6 +309,14 @@ def create_bot(bot_token, pool):
     handlers.extend(get_show_groups_handlers())
     handlers.extend(get_join_group_handlers())
     handlers.extend(get_left_group_handlers())
+
+    handlers.extend(get_ban_name_handlers())
+    handlers.extend(get_baned_name_handlers())
+    handlers.extend(get_unban_name_handlers())
+    handlers.extend(get_get_rate_handlers())
+
+    handlers.extend(get_rank_names_handlers())
+
 
     for handler in handlers:
         bot.register_message_handler(

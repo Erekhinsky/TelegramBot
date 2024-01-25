@@ -119,9 +119,23 @@ class ShowMembers(StatesGroup):
     setId = State()
 
 
+class BanName(StatesGroup):
+    setName = State()
+
+
+class UnbanName(StatesGroup):
+    setName = State()
+
+
 class AcceptJoin(StatesGroup):
     setUserId = State()
     setGroupId = State()
+
+
+class RateNames(StatesGroup):
+    chooseTier = State()
+    compareNames = State()
+    select_field = State()
 
 
 class DeleteMember(StatesGroup):

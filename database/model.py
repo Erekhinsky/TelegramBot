@@ -38,6 +38,25 @@ def add_user(pool, user_id, first_name, last_name):
     )
 
 
+def get_all_names(pool):
+    result = execute_select_query(
+        pool,
+        queries.get_all_names,
+    )
+
+    return result
+
+
+def add_user_rate(pool, user_id):
+    rate_id = random.randint(0, sys.maxsize)
+    execute_update_query(
+        pool,
+        queries.add_names_to_user_rate,
+        rate_id=rate_id,
+        user_id=user_id,
+    )
+
+
 def get_user(pool, user_id):
     result = execute_select_query(pool, queries.get_user, user_id=user_id)
 
@@ -50,6 +69,14 @@ def delete_user(pool, user_id):
     execute_update_query(
         pool,
         queries.delete_user,
+        user_id=user_id
+    )
+
+
+def delete_user_rate(pool, user_id):
+    execute_update_query(
+        pool,
+        queries.delete_user_rate,
         user_id=user_id
     )
 
@@ -188,7 +215,7 @@ def delete_group_by_id(pool, group_id):
     )
 
 
-# Вступление в группу и выход
+# Вступление в группу и выход ########################################################################################
 
 
 def add_to_group(pool, user_id, group_id):
@@ -212,7 +239,7 @@ def left_group(pool, user_id, group_id):
     )
 
 
-# Принять в группу и удалить
+# Принять в группу и удалить ########################################################################################
 
 
 def accept_join(pool, user_id, group_id, user_id_join):
@@ -232,7 +259,7 @@ def delete_member(pool, group_id, user_id_delete):
         group_id=group_id,
     )
 
-# Просмотр участников группы и заявок на вступление
+# Просмотр участников группы и заявок на вступление ###################################################################
 
 
 def get_members(pool, user_id, group_id):
@@ -273,3 +300,126 @@ def get_want_members(pool, user_id):
         return None
 
     return result
+
+
+# Забанить, разбанить и посмотреть забаненные имена #############################################################
+
+
+def ban_name(pool, user_id, name):
+    name_id = get_name_id_by_name(pool, name)["name_id"]
+    execute_update_query(
+        pool,
+        queries.ban_name,
+        user_id=user_id,
+        name_id=name_id
+    )
+
+
+def unban_name(pool, user_id, name):
+    name_id = get_name_id_by_name(pool, name)["name_id"]
+    execute_update_query(
+        pool,
+        queries.unban_name,
+        user_id=user_id,
+        name_id=name_id
+    )
+
+
+def get_baned_names(pool, user_id):
+    result = execute_select_query(
+        pool,
+        queries.get_baned_names,
+        user_id=user_id
+    )
+
+    if len(result) == 0:
+        return None
+
+    return result
+
+
+def get_rate_names(pool, user_id):
+    result = execute_select_query(
+        pool,
+        queries.get_rate_names,
+        user_id=user_id
+    )
+
+    return result
+
+
+def get_name_id_by_name(pool, name):
+    result = execute_select_query(
+        pool,
+        queries.get_name_id_by_name,
+        name=name
+    )
+
+    return result[0]
+
+
+# Tier
+
+
+def get_name_for_tier(pool, user_id):
+    result = execute_select_query(
+        pool,
+        queries.get_name_for_tier,
+        user_id=user_id
+    )
+
+    if not result:
+        return None
+
+    return result[0]
+
+
+def update_tier_for_name(pool, user_id, name, tier):
+    name_id = get_name_id_by_name(pool, name)["name_id"]
+    execute_update_query(
+        pool,
+        queries.update_tier,
+        user_id=user_id,
+        name_id=name_id,
+        tier=tier
+    )
+
+
+# Compare
+
+def get_name_for_compare(pool, user_id):
+    result = execute_select_query(
+        pool,
+        queries.get_name_for_compare,
+        user_id=user_id
+    )
+
+    if not result:
+        return None
+    if len(result) != 2:
+        return None
+
+    return result
+
+
+def update_value_for_name(pool, user_id, name):
+    name_id = get_name_id_by_name(pool, name)["name_id"]
+    value = get_value_by_name_id(pool, user_id, name_id)["value"] + 1
+    execute_update_query(
+        pool,
+        queries.update_value_for_name,
+        user_id=user_id,
+        name_id=name_id,
+        value=value
+    )
+
+
+def get_value_by_name_id(pool, user_id, name_id):
+    result = execute_select_query(
+        pool,
+        queries.get_value_by_name_id,
+        user_id=user_id,
+        name_id=name_id
+    )
+
+    return result[0]

@@ -1,7 +1,12 @@
+from user_interaction import texts
+
 USER_TABLE = "users"
 STATE_TABLE = "states"
 GROUP_TABLE = "group"
 USER_GROUP_TABLE = "users_group"
+USER_RATE_TABLE = "user_rate"
+GROUP_RATE_TABLE = "group_rate"
+NAMES_TABLE = "names"
 
 get_user_state = f"""
     DECLARE $user_id AS Uint64;
@@ -49,6 +54,13 @@ delete_user = f"""
     WHERE user_id == $user_id;
 
     DELETE FROM `{STATE_TABLE}`
+    WHERE user_id == $user_id;
+"""
+
+delete_user_rate = f"""
+    DECLARE $user_id AS Uint64;
+
+    DELETE FROM `{USER_RATE_TABLE}`
     WHERE user_id == $user_id;
 """
 
@@ -234,4 +246,126 @@ delete_user_from_not_user_group = f"""
 
     DELETE FROM `{USER_GROUP_TABLE}`
     WHERE user_id == $user_id;
+"""
+
+
+# Получение и добавление списка имен #########################################################################
+
+get_all_names = f"""
+    SELECT
+        name_id,
+        first_letter,
+        gender,
+        `{NAMES_TABLE}`.name AS name,
+
+    FROM `{NAMES_TABLE}`;
+"""
+
+get_name_id_by_name = f"""
+    DECLARE $name AS Utf8;
+
+    SELECT name_id
+    FROM `{NAMES_TABLE}` WHERE name == $name;
+"""
+
+get_value_by_name_id = f"""
+    DECLARE $user_id AS Utf8;
+    DECLARE $name_id AS Utf8;
+
+    SELECT value
+    FROM `{USER_RATE_TABLE}` WHERE user_id == $user_id AND name_id == $name_id;
+"""
+
+get_baned_names = f"""
+    DECLARE $user_id AS Uint64; 
+
+    SELECT
+        `{NAMES_TABLE}`.name AS name,
+    FROM `{USER_RATE_TABLE}`
+    FULL JOIN `{NAMES_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
+    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND `{USER_RATE_TABLE}`.banned == true;
+"""
+
+
+get_rate_names = f"""
+    DECLARE $user_id AS Uint64; 
+
+    SELECT
+        `{NAMES_TABLE}`.name AS name,
+        `{USER_RATE_TABLE}`.banned AS banned,
+        `{USER_RATE_TABLE}`.tier AS tier,
+        `{USER_RATE_TABLE}`.value AS value,
+    FROM `{USER_RATE_TABLE}`
+    FULL JOIN `{NAMES_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
+    WHERE `{USER_RATE_TABLE}`.user_id == $user_id;
+"""
+
+
+ban_name = f"""
+    DECLARE $user_id AS Uint64;
+    DECLARE $name_id AS Uint64;
+
+    UPDATE `{USER_RATE_TABLE}` 
+    SET banned = True
+    WHERE user_id == $user_id AND name_id == $name_id;
+"""
+
+
+unban_name = f"""
+    DECLARE $user_id AS Uint64;
+    DECLARE $name_id AS Uint64;
+
+    UPDATE `{USER_RATE_TABLE}` 
+    SET banned = False
+    WHERE user_id == $user_id AND name_id == $name_id;
+"""
+
+add_names_to_user_rate = f"""
+    DECLARE $rate_id AS Uint64;
+    DECLARE $user_id AS Uint64;
+
+    INSERT INTO `{USER_RATE_TABLE}` (rate_id, user_id, name_id, banned, tier, value)
+    VALUES 
+""" + texts.QUERY_TO_ADD_RATE_NAMES
+
+# Tier
+
+get_name_for_tier = f"""
+    DECLARE $user_id AS Uint64; 
+
+    SELECT `{NAMES_TABLE}`.name AS name
+    FROM `{NAMES_TABLE}`
+    FULL JOIN `{USER_RATE_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
+    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND `{USER_RATE_TABLE}`.tier == 0;
+"""
+
+update_tier = f"""
+    DECLARE $user_id AS Uint64;
+    DECLARE $name_id AS Uint64;
+    DECLARE $tier AS Uint64;
+    
+    UPDATE `{USER_RATE_TABLE}` 
+    SET tier = $tier
+    WHERE user_id == $user_id AND name_id == $name_id;
+"""
+
+get_name_for_compare = f"""
+    DECLARE $user_id AS Uint64;
+    
+    SELECT `{NAMES_TABLE}`.name AS name
+    FROM `{NAMES_TABLE}`
+    FULL JOIN `{USER_RATE_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
+    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND `{USER_RATE_TABLE}`.tier == 1 OR `{USER_RATE_TABLE}`.tier == 2
+    ORDER BY `{USER_RATE_TABLE}`.value 
+    LIMIT 2;
+"""
+
+update_value_for_name = f"""
+    DECLARE $user_id AS Uint64;
+    DECLARE $name_id AS Uint64;
+    DECLARE $value AS Uint64;
+    
+    UPDATE `{USER_RATE_TABLE}` 
+    SET value = $value
+    WHERE user_id == $user_id AND name_id == $name_id;
 """
