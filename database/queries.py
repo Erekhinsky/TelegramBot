@@ -268,9 +268,16 @@ get_name_id_by_name = f"""
     FROM `{NAMES_TABLE}` WHERE name == $name;
 """
 
+get_name_id_by_first_letter = f"""
+    DECLARE $first_letter AS Utf8;
+
+    SELECT name_id
+    FROM `{NAMES_TABLE}` WHERE first_letter == $first_letter;
+"""
+
 get_value_by_name_id = f"""
-    DECLARE $user_id AS Utf8;
-    DECLARE $name_id AS Utf8;
+    DECLARE $user_id AS Uint64;
+    DECLARE $name_id AS Uint64;
 
     SELECT value
     FROM `{USER_RATE_TABLE}` WHERE user_id == $user_id AND name_id == $name_id;
@@ -332,11 +339,23 @@ add_names_to_user_rate = f"""
 
 get_name_for_tier = f"""
     DECLARE $user_id AS Uint64; 
+    DECLARE $gender AS Utf8; 
+    DECLARE $first_letter AS Utf8;
 
     SELECT `{NAMES_TABLE}`.name AS name
     FROM `{NAMES_TABLE}`
     FULL JOIN `{USER_RATE_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
-    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND `{USER_RATE_TABLE}`.tier == 0;
+    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND `{USER_RATE_TABLE}`.tier == 0 AND `{NAMES_TABLE}`.gender == $gender AND `{NAMES_TABLE}`.first_letter = $first_letter;
+"""
+
+get_name_for_tier_no_first_letter = f"""
+    DECLARE $user_id AS Uint64; 
+    DECLARE $gender AS Utf8; 
+
+    SELECT `{NAMES_TABLE}`.name AS name
+    FROM `{NAMES_TABLE}`
+    FULL JOIN `{USER_RATE_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
+    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND `{USER_RATE_TABLE}`.tier == 0 AND `{NAMES_TABLE}`.gender == $gender;
 """
 
 update_tier = f"""
@@ -351,11 +370,27 @@ update_tier = f"""
 
 get_name_for_compare = f"""
     DECLARE $user_id AS Uint64;
+    DECLARE $gender AS Utf8; 
+    DECLARE $first_letter AS Utf8;
     
-    SELECT `{NAMES_TABLE}`.name AS name
+    SELECT `{NAMES_TABLE}`.name AS name,
+        `{USER_RATE_TABLE}`.value 
     FROM `{NAMES_TABLE}`
     FULL JOIN `{USER_RATE_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
-    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND `{USER_RATE_TABLE}`.tier == 1 OR `{USER_RATE_TABLE}`.tier == 2
+    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND (`{USER_RATE_TABLE}`.tier == 1 OR `{USER_RATE_TABLE}`.tier == 2) AND `{NAMES_TABLE}`.gender == $gender AND `{NAMES_TABLE}`.first_letter = $first_letter
+    ORDER BY `{USER_RATE_TABLE}`.value 
+    LIMIT 2;
+"""
+
+get_name_for_compare_no_first_letter = f"""
+    DECLARE $user_id AS Uint64;
+    DECLARE $gender AS Utf8; 
+    
+    SELECT `{NAMES_TABLE}`.name AS name,
+        `{USER_RATE_TABLE}`.value 
+    FROM `{NAMES_TABLE}`
+    FULL JOIN `{USER_RATE_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
+    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND (`{USER_RATE_TABLE}`.tier == 1 OR `{USER_RATE_TABLE}`.tier == 2) AND `{NAMES_TABLE}`.gender == $gender
     ORDER BY `{USER_RATE_TABLE}`.value 
     LIMIT 2;
 """

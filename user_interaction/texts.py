@@ -118,6 +118,14 @@ CHOOSE_NAME = "Выберите лучшее из двух имен:"
 COMPARE_OK = "Вы сравнили имена"
 NO_COMPARE = "Нет имен для сравнения"
 
+SELECT_GENDER_FILTER = "Имена какого пола вы хотите оценивать?"
+FILTER_GENDER_LIST = ["Женские", "Мужские"]
+NO_GENDER_FILTER = "Такого пола нет!"
+SELECT_FIRST_LETTER_FILTER = "На какую букву будут начинаться имена? Введите заглавную букву (если нет этого фильтра - 0):"
+FILTER_FIRST = ["А", "Б", "В", "Г", "Д", "Е", "Ж", "З", "И", "К", "Л", "М", "Н", "О", "П", "Р", "С", "Т", "У", "Ф", "Ш", "У", "Я", "Х", "Ч", "Э", 0]
+NO_FIRST_LETTER = "Нет такой первой буквы имени!"
+NO_FIRST_LETTER_TO_GENDER = "У выбранного пола нет имен на такую букву!"
+
 QUERY_TO_ADD_RATE_NAMES = """ ($rate_id, $user_id, 0, false, 0, 0),
 ($rate_id, $user_id, 1, false, 0, 0),
 ($rate_id, $user_id, 2, false, 0, 0),

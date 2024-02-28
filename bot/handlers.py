@@ -762,13 +762,13 @@ def handle_get_name_for_ban(message, bot, pool):
     banned = db_model.get_baned_names(pool, message.from_user.id)
 
     flag = 0
-    if not banned:
-        bot.send_message(
-            message.chat.id,
-            texts.NOT_BANNED_NAMES,
-            reply_markup=keyboards.EMPTY,
-        )
-        return
+    # if not banned:
+    #     bot.send_message(
+    #         message.chat.id,
+    #         texts.NOT_BANNED_NAMES,
+    #         reply_markup=keyboards.EMPTY,
+    #     )
+    #     return
 
     for ban in banned:
         if name == ban["name"]:
@@ -778,7 +778,7 @@ def handle_get_name_for_ban(message, bot, pool):
     if flag:
         bot.send_message(
             message.chat.id,
-            texts.NAME_NOT_BANNED,
+            texts.ALREADY_BANNED,
             reply_markup=keyboards.get_reply_keyboard(["/cancel"])
         )
         return
@@ -829,7 +829,7 @@ def handle_get_name_for_unban(message, bot, pool):
             texts.NOT_BANNED_NAMES,
             reply_markup=keyboards.EMPTY,
         )
-        return
+        return 
 
     for ban in banned:
         if name == ban["name"]:
@@ -893,7 +893,7 @@ def handle_get_rate_names(message, bot, pool):
 
     txt = texts.GET_RATE_NAMES
     for b in result:
-        if b["tier"] == 1 or b["tier"] == 2:
+        if b["tier"] == 1 or b["tier"] == 2 or b["banned"]:
             txt += texts.RATE_NAME.format(
                 b["name"],
                 b["banned"],
@@ -918,39 +918,109 @@ def handle_rate_names(message, bot, pool):
         return
 
     bot.set_state(
-        message.from_user.id, states.RateNames.select_field, message.chat.id
+        message.from_user.id, states.RateNames.get_gender_field, message.chat.id
     )
+    bot.send_message(
+        message.chat.id,
+        texts.SELECT_GENDER_FILTER,
+        reply_markup=keyboards.get_reply_keyboard(texts.FILTER_GENDER_LIST, ["/cancel"]),
+    )
+
+
+@logged_execution
+def handle_get_gender_filter_to_rate(message, bot, pool):
+    current_data = message.text
+    if current_data not in texts.FILTER_GENDER_LIST:
+        bot.send_message(
+            message.chat.id,
+            texts.NO_GENDER_FILTER,
+            reply_markup=keyboards.get_reply_keyboard(texts.FILTER_GENDER_LIST, ["/cancel"]),
+        )
+        return
+
+    if current_data == texts.FILTER_GENDER_LIST[0]:
+        current_data = "Женское"
+    else:
+        current_data = "Мужское"
+
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        data["gender"] = current_data
+
+    bot.send_message(
+        message.chat.id,
+        texts.SELECT_FIRST_LETTER_FILTER,
+        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+    )
+
+    bot.set_state(
+        message.from_user.id, states.RateNames.get_first_letter, message.chat.id
+    )
+
+
+@logged_execution
+def handle_get_first_letter_filter_to_rate(message, bot, pool):
+    gender = None
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        gender = data["gender"]
+    current_data = message.text
+    if current_data != "0":
+        if current_data not in texts.FILTER_FIRST:
+            bot.send_message(
+                message.chat.id,
+                texts.NO_FIRST_LETTER,
+                reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+            )
+            return
+
+    if current_data != "0":
+        if not db_model.get_name_id_by_first_letter(pool, current_data):
+            bot.send_message(
+                message.chat.id,
+                texts.NO_FIRST_LETTER_TO_GENDER,
+                reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+            )
+            return
+
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        data["first_letter"] = current_data
+        data["gender"] = gender
+
     bot.send_message(
         message.chat.id,
         texts.SELECT_FIELD_RATE,
         reply_markup=keyboards.get_reply_keyboard(texts.FIELD_LIST_RATE, ["/cancel"]),
     )
 
+    bot.set_state(
+        message.from_user.id, states.RateNames.select_field, message.chat.id
+    )
+
 
 @logged_execution
 def handle_choose_field_to_rate(message, bot, pool):
     field = None
+    gender = None
+    first_letter = None
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         field = data["field"]
+        gender = data["gender"]
+        first_letter = data["first_letter"]
         current_data = data[data["field"]]
 
-    if message.text not in texts.FIELD_LIST_RATE and not field:
-        bot.send_message(
-            message.chat.id,
-            texts.UNKNOWN_FIELD,
-            reply_markup=keyboards.get_reply_keyboard(texts.FIELD_LIST_RATE, ["/cancel"]),
-        )
-        return
-
     if not field:
+        if message.text not in texts.FIELD_LIST_RATE:
+            bot.send_message(
+                message.chat.id,
+                texts.UNKNOWN_FIELD,
+                reply_markup=keyboards.get_reply_keyboard(texts.FIELD_LIST_RATE, ["/cancel"]),
+            )
+            return
+
         field = message.text
 
-    if field == "Определение Tier" or field == "tier":
+    if field == texts.FIELD_LIST_RATE[0] or field == "tier":
         field = "tier"
-        bot.set_state(
-            message.from_user.id, states.RateNames.chooseTier, message.chat.id
-        )
-        current_data = db_model.get_name_for_tier(pool, message.from_user.id)
+        current_data = db_model.get_name_for_tier(pool, message.from_user.id, gender, first_letter)
         if not current_data:
             bot.delete_state(message.from_user.id, message.chat.id)
             bot.send_message(
@@ -959,6 +1029,9 @@ def handle_choose_field_to_rate(message, bot, pool):
                 reply_markup=keyboards.EMPTY,
             )
             return
+        bot.set_state(
+            message.from_user.id, states.RateNames.chooseTier, message.chat.id
+        )
         bot.send_message(
             message.chat.id,
             texts.CHOOSE_TIER_FOR_NAME.format(
@@ -967,12 +1040,9 @@ def handle_choose_field_to_rate(message, bot, pool):
             reply_markup=keyboards.get_reply_keyboard(texts.FIELD_TIER, ["/cancel"]),
         )
 
-    elif field == "Сравнение в Tier 1" or field == "compare":
+    elif field == texts.FIELD_LIST_RATE[1] or field == "compare":
         field = "compare"
-        bot.set_state(
-            message.from_user.id, states.RateNames.compareNames, message.chat.id
-        )
-        current_data = db_model.get_name_for_compare(pool, message.from_user.id)
+        current_data = db_model.get_name_for_compare(pool, message.from_user.id, gender, first_letter)
         if not current_data:
             bot.delete_state(message.from_user.id, message.chat.id)
             bot.send_message(
@@ -981,6 +1051,9 @@ def handle_choose_field_to_rate(message, bot, pool):
                 reply_markup=keyboards.EMPTY,
             )
             return
+        bot.set_state(
+            message.from_user.id, states.RateNames.compareNames, message.chat.id
+        )
         current_data = [current_data[0]["name"], current_data[1]["name"]]
 
         bot.send_message(
@@ -991,10 +1064,10 @@ def handle_choose_field_to_rate(message, bot, pool):
 
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data["field"] = field
+        data["gender"] = current_data
+        data["first_letter"] = first_letter
         data[field] = current_data
 
-
-# TODO - Разделение на Мужской и женский фильтр
 
 @logged_execution
 def handle_choose_tier(message, bot, pool):
@@ -1062,3 +1135,5 @@ def handle_compare_names(message, bot, pool):
         texts.COMPARE_OK,
         reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
     )
+
+    handle_choose_field_to_rate(message, bot, pool)

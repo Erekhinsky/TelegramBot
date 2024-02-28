@@ -358,15 +358,35 @@ def get_name_id_by_name(pool, name):
     return result[0]
 
 
+def get_name_id_by_first_letter(pool, first_letter):
+    result = execute_select_query(
+        pool,
+        queries.get_name_id_by_first_letter,
+        first_letter=first_letter
+    )
+
+    return result
+
+
 # Tier
 
 
-def get_name_for_tier(pool, user_id):
-    result = execute_select_query(
-        pool,
-        queries.get_name_for_tier,
-        user_id=user_id
-    )
+def get_name_for_tier(pool, user_id, gender, first_letter):
+    if first_letter:
+        result = execute_select_query(
+            pool,
+            queries.get_name_for_tier,
+            user_id=user_id,
+            gender=gender,
+            first_letter=first_letter
+        )
+    else:
+        result = execute_select_query(
+            pool,
+            queries.get_name_for_tier_no_first_letter,
+            user_id=user_id,
+            gender=gender
+        )
 
     if not result:
         return None
@@ -387,12 +407,22 @@ def update_tier_for_name(pool, user_id, name, tier):
 
 # Compare
 
-def get_name_for_compare(pool, user_id):
-    result = execute_select_query(
-        pool,
-        queries.get_name_for_compare,
-        user_id=user_id
-    )
+def get_name_for_compare(pool, user_id, gender, first_letter):
+    if first_letter:
+        result = execute_select_query(
+            pool,
+            queries.get_name_for_compare,
+            user_id=user_id,
+            gender=gender,
+            first_letter=first_letter
+        )
+    else:
+        result = execute_select_query(
+            pool,
+            queries.get_name_for_compare_no_first_letter,
+            user_id=user_id,
+            gender=gender
+        )
 
     if not result:
         return None
@@ -403,14 +433,14 @@ def get_name_for_compare(pool, user_id):
 
 
 def update_value_for_name(pool, user_id, name):
-    name_id = get_name_id_by_name(pool, name)["name_id"]
-    value = get_value_by_name_id(pool, user_id, name_id)["value"] + 1
+    name_id = int(get_name_id_by_name(pool, name)["name_id"])
+    value = int(get_value_by_name_id(pool, user_id, name_id)["value"])
     execute_update_query(
         pool,
         queries.update_value_for_name,
         user_id=user_id,
         name_id=name_id,
-        value=value
+        value=value + 1
     )
 
 

@@ -134,8 +134,11 @@ class AcceptJoin(StatesGroup):
 
 class RateNames(StatesGroup):
     chooseTier = State()
-    compareNames = State()
     select_field = State()
+    select_filter = State()
+    compareNames = State()
+    get_gender_field = State()
+    get_first_letter = State()
 
 
 class DeleteMember(StatesGroup):

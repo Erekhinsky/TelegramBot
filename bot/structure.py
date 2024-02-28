@@ -265,12 +265,22 @@ def get_rank_names_handlers():
             state=[
                 bot_states.RateNames.chooseTier,
                 bot_states.RateNames.select_field,
+                bot_states.RateNames.get_first_letter,
+                bot_states.RateNames.get_gender_field,
                 bot_states.RateNames.compareNames,
             ],
         ),
         Handler(
             callback=handlers.handle_choose_field_to_rate,
             state=bot_states.RateNames.select_field,
+        ),
+        Handler(
+            callback=handlers.handle_get_gender_filter_to_rate,
+            state=bot_states.RateNames.get_gender_field,
+        ),
+        Handler(
+            callback=handlers.handle_get_first_letter_filter_to_rate,
+            state=bot_states.RateNames.get_first_letter,
         ),
         Handler(
             callback=handlers.handle_choose_tier,
