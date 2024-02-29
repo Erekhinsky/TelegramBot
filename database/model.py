@@ -5,6 +5,8 @@ import random
 from database import queries
 from database.utils import execute_select_query, execute_update_query
 
+from logs import logged_execution, logger
+
 
 def get_state(pool, user_id):
     results = execute_select_query(pool, queries.get_user_state, user_id=user_id)
@@ -259,10 +261,11 @@ def delete_member(pool, group_id, user_id_delete):
         group_id=group_id,
     )
 
+
 # Просмотр участников группы и заявок на вступление ###################################################################
 
 
-def get_members(pool, user_id, group_id):
+def get_members(pool, group_id):
     result = execute_select_query(
         pool,
         queries.get_members,
@@ -348,6 +351,47 @@ def get_rate_names(pool, user_id):
     return result
 
 
+def get_group_rate(pool, group_id):
+    result = execute_select_query(
+        pool,
+        queries.get_group_rate,
+        group_id=group_id
+    )
+
+    return result
+
+
+def add_group_rate(pool, group_id):
+    users = get_members(pool, group_id)
+    group_rate = {}
+
+    for u in users:
+        rate = get_rate_names(pool, u["user_id"])
+        for r in rate:
+            if r.get("name") in group_rate.keys():
+                if group_rate[r["name"]][0]:
+                    group_rate[r["name"]] = [True, group_rate[r["name"]][1] + r["value"], r["gender"]]
+                else:
+                    group_rate[r["name"]] = [group_rate[r["name"]][0], group_rate[r["name"]][1] + r["value"], r["gender"]]
+            else:
+                group_rate[r["name"]] = [r["banned"], r["value"], r["gender"]]
+
+    return group_rate
+
+    # for item in group_rate.items():
+    #     name_id, gr = item[0], item[1]
+    #     rate_id = random.randint(0, sys.maxsize)
+    #     execute_update_query(
+    #         pool,
+    #         queries.add_name_to_group_rate,
+    #         rate_id=rate_id,
+    #         group_id=group_id,
+    #         name_id=int(name_id),
+    #         banned=bool(gr[0]),
+    #         value=int(gr[1])
+    #     )
+
+
 def get_name_id_by_name(pool, name):
     result = execute_select_query(
         pool,
@@ -372,7 +416,7 @@ def get_name_id_by_first_letter(pool, first_letter):
 
 
 def get_name_for_tier(pool, user_id, gender, first_letter):
-    if first_letter:
+    if first_letter != "0":
         result = execute_select_query(
             pool,
             queries.get_name_for_tier,
@@ -408,7 +452,7 @@ def update_tier_for_name(pool, user_id, name, tier):
 # Compare
 
 def get_name_for_compare(pool, user_id, gender, first_letter):
-    if first_letter:
+    if first_letter != "0":
         result = execute_select_query(
             pool,
             queries.get_name_for_compare,

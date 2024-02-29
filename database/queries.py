@@ -24,7 +24,6 @@ set_user_state = f"""
     VALUES ($user_id, $state);
 """
 
-
 ######################################################################################################################
 
 get_user = f"""
@@ -77,7 +76,6 @@ update_user = f"""
     FROM `{USER_TABLE}`
     WHERE user_id == $user_id;
 """
-
 
 # Получение всех групп #############################################################################################
 
@@ -134,7 +132,6 @@ delete_group_by_id = f"""
     DELETE FROM `{GROUP_TABLE}`WHERE group_id == $group_id;
 """
 
-
 # Добавление группы в группу и из группы ##############################################################################
 
 add_group = f"""
@@ -163,7 +160,6 @@ left_group = f"""
     DELETE FROM `{USER_GROUP_TABLE}` WHERE user_id == $user_id AND group_id == $group_id;
 """
 
-
 # Принять в группу и удалить ###########################################################################################
 
 accept_join = f"""
@@ -180,7 +176,6 @@ delete_member = f"""
 
     DELETE FROM `{USER_GROUP_TABLE}` WHERE user_id == $user_id AND group_id == $group_id;
 """
-
 
 # Посмотреть участников и потенциальных участников ################################################################
 
@@ -248,7 +243,6 @@ delete_user_from_not_user_group = f"""
     WHERE user_id == $user_id;
 """
 
-
 # Получение и добавление списка имен #########################################################################
 
 get_all_names = f"""
@@ -293,12 +287,13 @@ get_baned_names = f"""
     WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND `{USER_RATE_TABLE}`.banned == true;
 """
 
-
 get_rate_names = f"""
     DECLARE $user_id AS Uint64; 
 
     SELECT
         `{NAMES_TABLE}`.name AS name,
+        `{NAMES_TABLE}`.name_id AS name_id,
+        `{NAMES_TABLE}`.gender AS gender,
         `{USER_RATE_TABLE}`.banned AS banned,
         `{USER_RATE_TABLE}`.tier AS tier,
         `{USER_RATE_TABLE}`.value AS value,
@@ -306,7 +301,6 @@ get_rate_names = f"""
     FULL JOIN `{NAMES_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
     WHERE `{USER_RATE_TABLE}`.user_id == $user_id;
 """
-
 
 ban_name = f"""
     DECLARE $user_id AS Uint64;
@@ -316,7 +310,6 @@ ban_name = f"""
     SET banned = True
     WHERE user_id == $user_id AND name_id == $name_id;
 """
-
 
 unban_name = f"""
     DECLARE $user_id AS Uint64;
@@ -345,7 +338,7 @@ get_name_for_tier = f"""
     SELECT `{NAMES_TABLE}`.name AS name
     FROM `{NAMES_TABLE}`
     FULL JOIN `{USER_RATE_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
-    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND `{USER_RATE_TABLE}`.tier == 0 AND `{NAMES_TABLE}`.gender == $gender AND `{NAMES_TABLE}`.first_letter = $first_letter;
+    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND `{USER_RATE_TABLE}`.tier == 0 AND `{NAMES_TABLE}`.gender == $gender AND `{NAMES_TABLE}`.first_letter = $first_letter AND `{USER_RATE_TABLE}`.banned == false;
 """
 
 get_name_for_tier_no_first_letter = f"""
@@ -355,7 +348,7 @@ get_name_for_tier_no_first_letter = f"""
     SELECT `{NAMES_TABLE}`.name AS name
     FROM `{NAMES_TABLE}`
     FULL JOIN `{USER_RATE_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
-    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND `{USER_RATE_TABLE}`.tier == 0 AND `{NAMES_TABLE}`.gender == $gender;
+    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND `{USER_RATE_TABLE}`.tier == 0 AND `{NAMES_TABLE}`.gender == $gender AND `{USER_RATE_TABLE}`.banned == false;
 """
 
 update_tier = f"""
@@ -377,8 +370,8 @@ get_name_for_compare = f"""
         `{USER_RATE_TABLE}`.value 
     FROM `{NAMES_TABLE}`
     FULL JOIN `{USER_RATE_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
-    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND (`{USER_RATE_TABLE}`.tier == 1 OR `{USER_RATE_TABLE}`.tier == 2) AND `{NAMES_TABLE}`.gender == $gender AND `{NAMES_TABLE}`.first_letter = $first_letter
-    ORDER BY `{USER_RATE_TABLE}`.value 
+    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND (`{USER_RATE_TABLE}`.tier == 1 OR `{USER_RATE_TABLE}`.tier == 2) AND `{NAMES_TABLE}`.gender == $gender AND `{NAMES_TABLE}`.first_letter = $first_letter AND `{USER_RATE_TABLE}`.banned == false
+    ORDER BY RANDOM(name)
     LIMIT 2;
 """
 
@@ -390,8 +383,8 @@ get_name_for_compare_no_first_letter = f"""
         `{USER_RATE_TABLE}`.value 
     FROM `{NAMES_TABLE}`
     FULL JOIN `{USER_RATE_TABLE}` ON `{NAMES_TABLE}`.name_id = `{USER_RATE_TABLE}`.name_id 
-    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND (`{USER_RATE_TABLE}`.tier == 1 OR `{USER_RATE_TABLE}`.tier == 2) AND `{NAMES_TABLE}`.gender == $gender
-    ORDER BY `{USER_RATE_TABLE}`.value 
+    WHERE `{USER_RATE_TABLE}`.user_id == $user_id AND (`{USER_RATE_TABLE}`.tier == 1 OR `{USER_RATE_TABLE}`.tier == 2) AND `{NAMES_TABLE}`.gender == $gender AND `{USER_RATE_TABLE}`.banned == false
+    ORDER BY RANDOM(name)
     LIMIT 2;
 """
 
@@ -403,4 +396,28 @@ update_value_for_name = f"""
     UPDATE `{USER_RATE_TABLE}` 
     SET value = $value
     WHERE user_id == $user_id AND name_id == $name_id;
+"""
+
+add_name_to_group_rate = f"""
+    DECLARE $rate_id AS Uint64;
+    DECLARE $group_id AS Uint64;
+    DECLARE $name_id AS Uint64;
+    DECLARE $banned AS Bool;
+    DECLARE $value AS Uint64;
+
+    INSERT INTO `{GROUP_RATE_TABLE}` (rate_id, group_id, name_id, banned, value)
+    VALUES ($rate_id, $group_id, $name_id, $banned, $value);
+"""
+
+get_group_rate = f"""
+    DECLARE $group_id AS Uint64; 
+
+    SELECT
+        `{NAMES_TABLE}`.name AS name,
+        `{NAMES_TABLE}`.gender AS gender,
+        `{GROUP_RATE_TABLE}`.banned AS banned,
+        `{GROUP_RATE_TABLE}`.value AS value,
+    FROM `{GROUP_RATE_TABLE}`
+    FULL JOIN `{NAMES_TABLE}` ON `{NAMES_TABLE}`.name_id = `{GROUP_RATE_TABLE}`.name_id 
+    WHERE `{GROUP_RATE_TABLE}`.group_id == $group_id;
 """

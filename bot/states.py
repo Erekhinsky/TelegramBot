@@ -139,6 +139,7 @@ class RateNames(StatesGroup):
     compareNames = State()
     get_gender_field = State()
     get_first_letter = State()
+    complete_rate = State()
 
 
 class DeleteMember(StatesGroup):
@@ -146,3 +147,5 @@ class DeleteMember(StatesGroup):
     setGroupId = State()
 
 
+class GroupRate(StatesGroup):
+    setId = State()

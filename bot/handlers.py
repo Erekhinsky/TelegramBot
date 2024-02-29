@@ -1,6 +1,6 @@
 from bot import keyboards, states
 from database import model as db_model
-from logs import logged_execution
+from logs import logged_execution, logger
 from user_interaction import texts
 
 
@@ -28,7 +28,6 @@ def check_digit(message, bot):
 
 
 def check_exist_group(message, bot, pool):
-
     if check_digit(message, bot):
         return 1
 
@@ -47,7 +46,6 @@ def check_exist_group(message, bot, pool):
 
 
 def check_full_id_group(message, bot, pool):
-
     group_id, current_data = check_exist_group(message, bot, pool)
 
     if not group_id or not current_data:
@@ -65,7 +63,6 @@ def check_full_id_group(message, bot, pool):
 
 
 def check_name_exist(message, bot, pool):
-
     name = message.text
     names = db_model.get_all_names(pool)
 
@@ -83,6 +80,7 @@ def check_name_exist(message, bot, pool):
         return 1
 
     return name
+
 
 #####################################################################################################################
 
@@ -393,7 +391,6 @@ def handle_join_group(message, bot, pool):
 
 @logged_execution
 def handle_get_group_id_for_join(message, bot, pool):
-
     group_id, current_data = check_exist_group(message, bot, pool)
     if not group_id or not current_data:
         return
@@ -431,7 +428,6 @@ def handle_left_group(message, bot, pool):
 
 @logged_execution
 def handle_get_group_id_for_left(message, bot, pool):
-
     group_id, current_data = check_exist_group(message, bot, pool)
     if not group_id or not current_data:
         return
@@ -484,7 +480,6 @@ def handle_delete_group(message, bot, pool):
 
 @logged_execution
 def handle_get_group_id_for_delete_group(message, bot, pool):
-
     group_id, current_data = check_full_id_group(message, bot, pool)
     if not group_id or not current_data:
         return
@@ -521,7 +516,6 @@ def handle_accept_join(message, bot, pool):
 
 @logged_execution
 def handle_get_group_id_for_accept_join(message, bot, pool):
-
     group_id, current_data = check_full_id_group(message, bot, pool)
     if not group_id or not current_data:
         return
@@ -542,7 +536,6 @@ def handle_get_group_id_for_accept_join(message, bot, pool):
 
 @logged_execution
 def handle_get_user_id_for_accept_join(message, bot, pool):
-
     if check_digit(message, bot):
         return
 
@@ -591,7 +584,6 @@ def handle_delete_member(message, bot, pool):
 
 @logged_execution
 def handle_get_group_id_for_delete(message, bot, pool):
-
     group_id, current_data = check_exist_group(message, bot, pool)
     if not group_id or not current_data:
         return
@@ -662,13 +654,12 @@ def handle_show_members(message, bot, pool):
 
 @logged_execution
 def handle_get_group_id_for_show(message, bot, pool):
-
     group_id, current_data = check_full_id_group(message, bot, pool)
     if not group_id or not current_data:
         return
 
     bot.delete_state(message.from_user.id, message.chat.id)
-    current_data = db_model.get_members(pool, message.from_user.id, group_id)
+    current_data = db_model.get_members(pool, group_id)
 
     if not current_data:
         bot.send_message(
@@ -753,7 +744,6 @@ def handle_ban_name(message, bot, pool):
 
 @logged_execution
 def handle_get_name_for_ban(message, bot, pool):
-
     name = check_name_exist(message, bot, pool)
     if name == 1:
         return
@@ -829,7 +819,7 @@ def handle_get_name_for_unban(message, bot, pool):
             texts.NOT_BANNED_NAMES,
             reply_markup=keyboards.EMPTY,
         )
-        return 
+        return
 
     for ban in banned:
         if name == ban["name"]:
@@ -860,7 +850,6 @@ def handle_get_name_for_unban(message, bot, pool):
 
 @logged_execution
 def handle_get_baned_names(message, bot, pool):
-
     result = db_model.get_baned_names(pool, message.from_user.id)
 
     if not result:
@@ -888,15 +877,41 @@ def handle_get_baned_names(message, bot, pool):
 
 @logged_execution
 def handle_get_rate_names(message, bot, pool):
-
     result = db_model.get_rate_names(pool, message.from_user.id)
 
     txt = texts.GET_RATE_NAMES
+    wom = []
+    man = []
     for b in result:
-        if b["tier"] == 1 or b["tier"] == 2 or b["banned"]:
-            txt += texts.RATE_NAME.format(
+        if (b["tier"] == 1 or b["tier"] == 2 or b["banned"]) and b["gender"] == "Женское":
+            wom.append(b)
+        if (b["tier"] == 1 or b["tier"] == 2 or b["banned"]) and b["gender"] == "Мужское":
+            man.append(b)
+
+    txt += texts.GET_RATE_NAMES_WOMAN
+    wom.sort(key=lambda name: int(name["value"]), reverse=True)
+    for b in wom:
+        if b["banned"]:
+            txt += texts.RATE_NAME_BANNED.format(
                 b["name"],
-                b["banned"],
+            )
+        else:
+            txt += texts.RATE_NAME_NOT_BANNED.format(
+                b["name"],
+                b["tier"],
+                b["value"]
+            )
+
+    txt += texts.GET_RATE_NAMES_MAN
+    man.sort(key=lambda name: int(name["value"]), reverse=True)
+    for b in man:
+        if b["banned"]:
+            txt += texts.RATE_NAME_BANNED.format(
+                b["name"],
+            )
+        else:
+            txt += texts.RATE_NAME_NOT_BANNED.format(
+                b["name"],
                 b["tier"],
                 b["value"]
             )
@@ -959,9 +974,6 @@ def handle_get_gender_filter_to_rate(message, bot, pool):
 
 @logged_execution
 def handle_get_first_letter_filter_to_rate(message, bot, pool):
-    gender = None
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        gender = data["gender"]
     current_data = message.text
     if current_data != "0":
         if current_data not in texts.FILTER_FIRST:
@@ -983,7 +995,6 @@ def handle_get_first_letter_filter_to_rate(message, bot, pool):
 
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data["first_letter"] = current_data
-        data["gender"] = gender
 
     bot.send_message(
         message.chat.id,
@@ -998,80 +1009,78 @@ def handle_get_first_letter_filter_to_rate(message, bot, pool):
 
 @logged_execution
 def handle_choose_field_to_rate(message, bot, pool):
-    field = None
-    gender = None
-    first_letter = None
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        field = data["field"]
-        gender = data["gender"]
-        first_letter = data["first_letter"]
-        current_data = data[data["field"]]
-
-    if not field:
-        if message.text not in texts.FIELD_LIST_RATE:
-            bot.send_message(
-                message.chat.id,
-                texts.UNKNOWN_FIELD,
-                reply_markup=keyboards.get_reply_keyboard(texts.FIELD_LIST_RATE, ["/cancel"]),
-            )
-            return
-
-        field = message.text
-
-    if field == texts.FIELD_LIST_RATE[0] or field == "tier":
-        field = "tier"
-        current_data = db_model.get_name_for_tier(pool, message.from_user.id, gender, first_letter)
-        if not current_data:
-            bot.delete_state(message.from_user.id, message.chat.id)
-            bot.send_message(
-                message.chat.id,
-                texts.NO_CHOOSE_FOR_TIER,
-                reply_markup=keyboards.EMPTY,
-            )
-            return
-        bot.set_state(
-            message.from_user.id, states.RateNames.chooseTier, message.chat.id
-        )
-        bot.send_message(
-            message.chat.id,
-            texts.CHOOSE_TIER_FOR_NAME.format(
-                current_data["name"]
-            ),
-            reply_markup=keyboards.get_reply_keyboard(texts.FIELD_TIER, ["/cancel"]),
-        )
-
-    elif field == texts.FIELD_LIST_RATE[1] or field == "compare":
-        field = "compare"
-        current_data = db_model.get_name_for_compare(pool, message.from_user.id, gender, first_letter)
-        if not current_data:
-            bot.delete_state(message.from_user.id, message.chat.id)
-            bot.send_message(
-                message.chat.id,
-                texts.NO_COMPARE,
-                reply_markup=keyboards.EMPTY,
-            )
-            return
-        bot.set_state(
-            message.from_user.id, states.RateNames.compareNames, message.chat.id
-        )
-        current_data = [current_data[0]["name"], current_data[1]["name"]]
-
-        bot.send_message(
-            message.chat.id,
-            texts.CHOOSE_NAME,
-            reply_markup=keyboards.get_reply_keyboard(current_data, ["/cancel"]),
-        )
+    current_data = ""
+    field = ""
 
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        field = data.get("field")
+        gender = data.get("gender")
+        first_letter = data.get("first_letter")
+
+        if not field:
+            if message.text not in texts.FIELD_LIST_RATE:
+                bot.send_message(
+                    message.chat.id,
+                    texts.UNKNOWN_FIELD,
+                    reply_markup=keyboards.get_reply_keyboard(texts.FIELD_LIST_RATE, ["/cancel"]),
+                )
+                return
+            field = message.text
+
+        if field == texts.FIELD_LIST_RATE[0] or field == "tier":
+            field = "tier"
+            current_data = db_model.get_name_for_tier(pool, message.from_user.id, gender, first_letter)
+            if not current_data:
+                bot.delete_state(message.from_user.id, message.chat.id)
+                bot.send_message(
+                    message.chat.id,
+                    texts.NO_CHOOSE_FOR_TIER,
+                    reply_markup=keyboards.get_reply_keyboard(texts.FIELD_LIST_RATE, ["/cancel"]),
+                )
+                return
+
+            bot.set_state(
+                message.from_user.id, states.RateNames.chooseTier, message.chat.id
+            )
+            bot.send_message(
+                message.chat.id,
+                texts.CHOOSE_TIER_FOR_NAME.format(
+                    current_data["name"]
+                ),
+                reply_markup=keyboards.get_reply_keyboard(texts.FIELD_TIER, ["/cancel"]),
+            )
+
+        elif field == texts.FIELD_LIST_RATE[1] or field == "compare":
+            field = "compare"
+            current_data = db_model.get_name_for_compare(pool, message.from_user.id, gender, first_letter)
+            if not current_data:
+                bot.delete_state(message.from_user.id, message.chat.id)
+                bot.send_message(
+                    message.chat.id,
+                    texts.NO_COMPARE,
+                    reply_markup=keyboards.EMPTY,
+                )
+                return
+
+            bot.set_state(
+                message.from_user.id, states.RateNames.compareNames, message.chat.id
+            )
+            current_data = [current_data[0]["name"], current_data[1]["name"]]
+            bot.send_message(
+                message.chat.id,
+                texts.CHOOSE_NAME,
+                reply_markup=keyboards.get_reply_keyboard(current_data, ["/cancel"]),
+            )
+
         data["field"] = field
-        data["gender"] = current_data
+        data["gender"] = gender
         data["first_letter"] = first_letter
         data[field] = current_data
 
 
 @logged_execution
 def handle_choose_tier(message, bot, pool):
-    name = None
+    name = ""
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         name = data["tier"]["name"]
 
@@ -1084,7 +1093,6 @@ def handle_choose_tier(message, bot, pool):
         return
 
     tier = message.text
-
     if tier == texts.FIELD_TIER[0]:
         tier = 1
     elif tier == texts.FIELD_TIER[1]:
@@ -1099,11 +1107,10 @@ def handle_choose_tier(message, bot, pool):
     bot.set_state(
         message.from_user.id, states.RateNames.select_field, message.chat.id
     )
-
     bot.send_message(
         message.chat.id,
         texts.CHOOSE_TIER_OK,
-        reply_markup=keyboards.get_reply_keyboard(texts.FIELD_TIER, ["/cancel"]),
+        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
     )
 
     handle_choose_field_to_rate(message, bot, pool)
@@ -1112,7 +1119,7 @@ def handle_choose_tier(message, bot, pool):
 @logged_execution
 def handle_compare_names(message, bot, pool):
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        names = data["compare"]
+        names = data.get("compare")
 
     if message.text not in names:
         bot.send_message(
@@ -1123,13 +1130,11 @@ def handle_compare_names(message, bot, pool):
         return
 
     best_name = message.text
-
     db_model.update_value_for_name(pool, message.from_user.id, best_name)
 
     bot.set_state(
         message.from_user.id, states.RateNames.select_field, message.chat.id
     )
-
     bot.send_message(
         message.chat.id,
         texts.COMPARE_OK,
@@ -1137,3 +1142,78 @@ def handle_compare_names(message, bot, pool):
     )
 
     handle_choose_field_to_rate(message, bot, pool)
+
+
+# Рейтинг группы ###########################################################################################
+
+
+@logged_execution
+def handle_get_group_rate(message, bot, pool):
+    current_data = db_model.get_user(pool, message.from_user.id)
+    if check_register(message, bot, current_data):
+        return
+
+    bot.send_message(
+        message.chat.id,
+        texts.GROUP_RATE,
+        reply_markup=keyboards.get_reply_keyboard(["/cancel"]),
+    )
+    bot.set_state(
+        message.from_user.id, states.GroupRate.setId, message.chat.id
+    )
+
+
+@logged_execution
+def handle_get_group_id_for_group_rate(message, bot, pool):
+    group_id, current_data = check_exist_group(message, bot, pool)
+    if not group_id or not current_data:
+        return
+
+    result = db_model.add_group_rate(pool, group_id)
+    # result = db_model.get_group_rate(pool, group_id)
+
+    txt = texts.GET_GROUP_RATE.format(current_data["name"])
+    wom = []
+    man = []
+    for b in result.items():
+        if b[1][2] == "Женское":
+            wom.append(b)
+        if b[1][2] == "Мужское":
+            man.append(b)
+
+    txt += texts.GET_RATE_NAMES_WOMAN
+    wom.sort(key=lambda name: int(name[1][1]), reverse=True)
+    for b in wom:
+        if int(b[1][1]) != 0:
+            if b[1][0]:
+                txt += texts.RATE_NAME_BANNED.format(
+                    b[0],
+                )
+            else:
+                txt += texts.GROUP_RATE_NAME_NOT_BANNED.format(
+                    b[0],
+                    b[1][1]
+                )
+
+    txt += texts.GET_RATE_NAMES_MAN
+    man.sort(key=lambda name: int(name[1][1]), reverse=True)
+    for b in man:
+        if int(b[1][1]) != 0:
+            if b[1][0]:
+                txt += texts.RATE_NAME_BANNED.format(
+                    b[0],
+                )
+            else:
+                txt += texts.GROUP_RATE_NAME_NOT_BANNED.format(
+                    b[0],
+                    b[1][1]
+                )
+
+    bot.delete_state(message.from_user.id, message.chat.id)
+
+    bot.send_message(
+        message.chat.id,
+        txt,
+        reply_markup=keyboards.EMPTY,
+    )
+

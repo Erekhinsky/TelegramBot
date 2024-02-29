@@ -299,6 +299,23 @@ def get_get_rate_handlers():
     ]
 
 
+def get_get_group_rate_handlers():
+    return [
+        Handler(callback=handlers.handle_get_group_rate, commands=["get_group_rate"]),
+        Handler(
+            callback=handlers.handle_cancel,
+            commands=["cancel"],
+            state=[
+                bot_states.GroupRate.setId,
+            ],
+        ),
+        Handler(
+            callback=handlers.handle_get_group_id_for_group_rate,
+            state=bot_states.GroupRate.setId,
+        ),
+    ]
+
+
 def create_bot(bot_token, pool):
     state_storage = bot_states.StateYDBStorage(pool)
     bot = TeleBot(bot_token, state_storage=state_storage)
@@ -326,7 +343,7 @@ def create_bot(bot_token, pool):
     handlers.extend(get_get_rate_handlers())
 
     handlers.extend(get_rank_names_handlers())
-
+    handlers.extend(get_get_group_rate_handlers())
 
     for handler in handlers:
         bot.register_message_handler(
